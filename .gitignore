@@ -93,3 +93,36 @@ database/.env
 *.tar
 *.gz
 *.7z
+
+# ---------- 建议不上传 GitHub：个人说明 / 本机工具 / 密钥载体 ----------
+# 开发进度报告（常含测试账号、Token、内网信息）
+开发进度报告.md
+
+# Claude / 本机-only 配置
+.claude/
+**/settings.local.json
+
+# 私密笔记副本（文件名含「私密」「本地」则不纳入版本库）
+*私密*.md
+*本地*.md
+
+# 其他常见 .env 命名（勿用通配误伤 .env.example）
+.env.staging
+.env.stage
+.env.prod
+.env.production
+
+# 云服务 / CI 密钥文件（有则勿提交）
+**/google-services.json
+**/serviceAccount*.json
+**/*firebase-adminsdk*.json
+**/client_secret*.json
+**/credentials.json
+.secrets/
+
+# 部署工具本地状态（可能含 token）
+.vercel/
+.netlify/
+
+# Windows 下偶发的非法设备名文件
+nul
