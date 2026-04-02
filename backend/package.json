@@ -1,0 +1,44 @@
+{
+  "name": "ninja-clan-backend",
+  "version": "1.0.0",
+  "description": "《忍者必须死3》家族网站后端API",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest",
+    "migrate": "node src/database/migrations/run.js"
+  },
+  "keywords": ["ninja-must-die-3", "clan", "gaming", "api"],
+  "author": "Ninja Clan Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mysql2": "^3.6.0",
+    "sequelize": "^6.32.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.6.1",
+    "node-cron": "^3.0.2",
+    "validator": "^13.9.0",
+    "express-validator": "^6.15.0",
+    "helmet": "^7.0.0",
+    "compression": "^1.7.4",
+    "morgan": "^1.10.0",
+    "winston": "^3.8.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22",
+    "jest": "^29.5.0",
+    "supertest": "^6.3.3",
+    "eslint": "^8.38.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.27.5"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

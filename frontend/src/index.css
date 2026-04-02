@@ -1,0 +1,261 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 水墨风格全局样式 */
+
+@layer base {
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    background-image: theme('backgroundImage.paper-texture');
+    background-attachment: fixed;
+  }
+
+  /* 毛笔风格滚动条 */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-paper-dark;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-ink-light rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-accent-red;
+  }
+
+  /* 水墨风格链接 */
+  a {
+    @apply text-accent-blue transition-colors duration-200;
+  }
+
+  a:hover {
+    @apply text-accent-red underline;
+  }
+
+  /* 书法风格标题 */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif font-bold tracking-tight;
+  }
+
+  h1 {
+    @apply text-4xl md:text-5xl mb-6;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  h2 {
+    @apply text-3xl md:text-4xl mb-4;
+  }
+
+  h3 {
+    @apply text-2xl md:text-3xl mb-3;
+  }
+}
+
+@layer components {
+  /* 宣纸卡片 */
+  .paper-card {
+    @apply bg-paper border-2 border-ink-light rounded-xl shadow-lg p-6;
+    background-image: theme('backgroundImage.paper-texture');
+    position: relative;
+  }
+
+  .paper-card::before {
+    content: '';
+    @apply absolute inset-0 border border-ink/20 rounded-xl pointer-events-none;
+  }
+
+  /* 水墨按钮 */
+  .ink-button {
+    @apply px-6 py-3 rounded-full font-serif font-bold transition-all duration-200;
+    background: linear-gradient(145deg, #2d2d2d, #1a1a1a);
+    color: white;
+    box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3),
+                -1px -1px 3px rgba(255, 255, 255, 0.1);
+  }
+
+  .ink-button:hover {
+    @apply transform -translate-y-1;
+    background: linear-gradient(145deg, #c53030, #9b2c2c);
+    box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  .ink-button:active {
+    @apply transform translate-y-0;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  .ink-button-primary {
+    background: linear-gradient(145deg, #c53030, #9b2c2c);
+  }
+
+  .ink-button-secondary {
+    background: linear-gradient(145deg, #2b6cb0, #2c5282);
+  }
+
+  /* 毛笔边框输入框 */
+  .brush-input {
+    @apply w-full px-4 py-3 border-2 border-ink-light rounded-lg bg-paper-dark
+           focus:outline-none focus:border-accent-red focus:ring-2 focus:ring-accent-red/20
+           transition-all duration-200 font-sans;
+  }
+
+  .brush-input::placeholder {
+    @apply text-ninja-light-gray italic;
+  }
+
+  /* 忍者分隔线 */
+  .ninja-divider {
+    @apply relative my-8;
+  }
+
+  .ninja-divider::before {
+    content: '';
+    @apply absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-ink-light to-transparent;
+  }
+
+  .ninja-divider::after {
+    content: '忍';
+    @apply absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2
+           bg-paper px-4 text-accent-red font-serif font-bold text-xl;
+  }
+
+  /* 卷轴容器 */
+  .scroll-container {
+    @apply relative overflow-hidden;
+  }
+
+  .scroll-container::before,
+  .scroll-container::after {
+    content: '';
+    @apply absolute left-0 right-0 h-8 bg-gradient-to-b from-paper to-transparent z-10;
+  }
+
+  .scroll-container::before {
+    @apply top-0;
+  }
+
+  .scroll-container::after {
+    @apply bottom-0 transform rotate-180;
+  }
+
+  /* 印章效果 */
+  .seal-stamp {
+    @apply inline-block px-3 py-1 rounded-md border-2 border-accent-red
+           text-accent-red font-serif font-bold transform -rotate-6;
+    background-color: rgba(197, 48, 48, 0.1);
+  }
+
+  /* 水墨标签 */
+  .ink-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+    background: linear-gradient(135deg, rgba(26, 26, 26, 0.9), rgba(45, 45, 45, 0.9));
+    color: white;
+  }
+
+  .ink-badge-red {
+    background: linear-gradient(135deg, rgba(197, 48, 48, 0.9), rgba(155, 44, 44, 0.9));
+  }
+
+  .ink-badge-blue {
+    background: linear-gradient(135deg, rgba(43, 108, 176, 0.9), rgba(44, 82, 130, 0.9));
+  }
+
+  .ink-badge-gold {
+    background: linear-gradient(135deg, rgba(214, 158, 46, 0.9), rgba(183, 134, 39, 0.9));
+  }
+}
+
+@layer utilities {
+  /* 水墨模糊动画 */
+  .animate-ink-blur {
+    animation: inkBlur 0.5s ease-out;
+  }
+
+  /* 宣纸淡入动画 */
+  .animate-paper-fade {
+    animation: paperFade 0.3s ease-in;
+  }
+
+  /* 滑动进入动画 */
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  /* 毛笔书写效果 */
+  .brush-stroke {
+    position: relative;
+  }
+
+  .brush-stroke::after {
+    content: '';
+    @apply absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-accent-red to-transparent opacity-50;
+    animation: brushWrite 1s ease-out;
+  }
+
+  @keyframes brushWrite {
+    0% {
+      width: 0;
+      left: 50%;
+    }
+    100% {
+      width: 100%;
+      left: 0;
+    }
+  }
+
+  /* 墨水晕染效果 */
+  .ink-blur {
+    filter: blur(2px);
+    transition: filter 0.3s ease;
+  }
+
+  .ink-blur:hover {
+    filter: blur(0);
+  }
+
+  /* 忍者隐身效果 */
+  .ninja-vanish {
+    @apply transition-all duration-300;
+  }
+
+  .ninja-vanish:hover {
+    @apply opacity-80 transform scale-105;
+  }
+}
+
+/* 自定义滚动区域 */
+.scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: theme('colors.ink.light') theme('colors.paper.dark');
+}
+
+/* 响应式调整 */
+@media (max-width: 640px) {
+  .paper-card {
+    @apply p-4;
+  }
+
+  h1 {
+    @apply text-3xl;
+  }
+
+  h2 {
+    @apply text-2xl;
+  }
+}
+
+/* 打印样式 */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .paper-card {
+    @apply border shadow-none;
+  }
+}

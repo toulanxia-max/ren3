@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1a1a1a" />
+    <meta name="description" content="《忍者必须死3》家族网站 - 家族成员管理、深渊排表、SS+猎杀、家族战记录" />
+    <meta name="keywords" content="忍者必须死3,家族,深渊,SS+,猎杀,家族战,游戏社区" />
+    <meta name="author" content="Ninja Clan Team" />
+
+    <!-- 网站图标：favicon.png 为透明底圆形徽标（域名左侧小图标） -->
+    <link rel="icon" type="image/png" href="%PUBLIC_URL%/favicon.png" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/clan-logo.png" />
+
+    <!-- 网站标题 -->
+    <title>紫川家族 · 忍3家族站</title>
+
+    <!-- 预加载字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+QingKe+HuangYou&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- PWA配置 -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+    <!-- 移动端优化 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- SEO优化 -->
+    <meta property="og:title" content="忍3家族网站 - 忍者必须死3家族管理系统" />
+    <meta property="og:description" content="专为《忍者必须死3》游戏家族打造的管理系统，提供深渊排表、SS+猎杀、家族战记录等功能。" />
+    <meta property="og:image" content="%PUBLIC_URL%/og-image.png" />
+    <meta property="og:url" content="https://ninja-clan.example.com" />
+    <meta property="og:type" content="website" />
+
+    <!-- Twitter卡片 -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="忍3家族网站 - 忍者必须死3家族管理系统" />
+    <meta name="twitter:description" content="专为《忍者必须死3》游戏家族打造的管理系统" />
+    <meta name="twitter:image" content="%PUBLIC_URL%/twitter-card.png" />
+
+    <!-- 样式优化 -->
+    <style>
+      /* 加载前样式 */
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Microsoft YaHei', 'Hiragino Sans GB', 'WenQuanYi Micro Hei', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background-color: #f5f5f0;
+        background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%239C92AC' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+        color: #1a1a1a;
+      }
+
+      /* 加载动画 */
+      .loading-screen {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        text-align: center;
+        background: linear-gradient(135deg, #f5f5f0 0%, #e8e8e0 100%);
+      }
+
+      .loading-logo {
+        width: 120px;
+        height: 120px;
+        margin-bottom: 2rem;
+        animation: pulse 2s infinite;
+        border-radius: 50%;
+        object-fit: cover;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+      }
+
+      .loading-text {
+        font-family: 'Ma Shan Zheng', cursive;
+        font-size: 2.5rem;
+        color: #c53030;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .loading-subtext {
+        font-family: 'Noto Sans SC', sans-serif;
+        color: #4a5568;
+        font-size: 1.1rem;
+        max-width: 400px;
+        line-height: 1.6;
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.05);
+          opacity: 0.8;
+        }
+      }
+
+    </style>
+  </head>
+  <body>
+    <!-- 加载屏幕 -->
+    <div id="loading" class="loading-screen">
+      <img src="%PUBLIC_URL%/clan-logo.png" alt="" class="loading-logo" width="120" height="120" />
+      <div class="loading-text">紫川</div>
+      <div class="loading-subtext">
+        正在加载紫川家族站（忍3）…
+        <br>
+        请稍候
+      </div>
+    </div>
+
+    <!-- 应用根节点 -->
+    <noscript>您需要启用JavaScript才能运行此应用。</noscript>
+    <div id="root"></div>
+
+    <!-- 加载脚本 -->
+    <script>
+      // 隐藏加载屏幕
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          var loading = document.getElementById('loading');
+          if (loading) {
+            loading.style.opacity = '0';
+            loading.style.transition = 'opacity 0.5s ease';
+            setTimeout(function() {
+              loading.style.display = 'none';
+            }, 500);
+          }
+        }, 1000);
+      });
+
+      // 错误处理
+      window.addEventListener('error', function(e) {
+        console.error('应用错误:', e.error);
+        // 可以在这里发送错误报告
+      });
+
+      // PWA服务Worker注册
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/service-worker.js').then(
+            function(registration) {
+              console.log('ServiceWorker 注册成功: ', registration.scope);
+            },
+            function(err) {
+              console.log('ServiceWorker 注册失败: ', err);
+            }
+          );
+        });
+      }
+    </script>
+  </body>
+</html>

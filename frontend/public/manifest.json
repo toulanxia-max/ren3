@@ -1,0 +1,16 @@
+{
+  "short_name": "紫川家族",
+  "name": "紫川家族站 · 忍3",
+  "icons": [
+    {
+      "src": "clan-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1a1a1a",
+  "background_color": "#f5f5f0"
+}
