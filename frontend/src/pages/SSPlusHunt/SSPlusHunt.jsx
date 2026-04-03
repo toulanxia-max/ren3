@@ -111,7 +111,7 @@ const SSPlusHunt = () => {
           SS+猎杀系统
         </h1>
         <p className="text-ninja-gray">
-          成员上传截图自动生成任务，管理员分配5个位置，系统按倒计时每日更新剩余天数
+          成员发布任务后自动占用位置1（可知是谁发布），管理员分配其余位置；系统按倒计时每日更新剩余天数
         </p>
       </div>
 
@@ -178,10 +178,20 @@ const SSPlusHunt = () => {
                       <FiCalendar className="mr-2 text-ninja-gray" />
                       上传日期: <span className="ml-1 font-bold">{task.hunt_date}</span>
                     </div>
+                    <div className="flex items-center text-sm">
+                      <FiUser className="mr-2 text-ninja-gray" />
+                      发布者:{' '}
+                      <span className="ml-1 font-bold">
+                        {task.creator?.display_name || task.creator?.username || '—'}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="mb-4">
                     <div className="font-medium mb-2">分配位置（5人）</div>
+                    <p className="text-xs text-ninja-gray mb-2">
+                      位置1默认为发布任务成员，管理员可改；位置2～5由管理员分配。
+                    </p>
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                       {[0, 1, 2, 3, 4].map((idx) => (
                         <select
@@ -234,7 +244,7 @@ const SSPlusHunt = () => {
             <div className="text-center">
               <h2 className="text-xl font-bold mb-2">发布猎杀任务</h2>
               <p className="text-ninja-gray mb-6">
-                由成员手动填写Boss和倒计时后直接发布任务
+                由成员手动填写 Boss 和倒计时后发布任务；您将自动占用猎杀位置 1，其余位置由管理员分配。
               </p>
             </div>
 
@@ -335,8 +345,8 @@ const SSPlusHunt = () => {
             <ul className="list-disc list-inside space-y-1 text-ninja-gray">
               <li>截图以屏幕中心Boss卡片为主</li>
               <li>确保图片清晰可读</li>
-              <li>成员均可上传，上传后自动生成任务</li>
-              <li>管理员可在任务中分配5个位置</li>
+              <li>成员均可上传或手动发布，发布者自动占位置1</li>
+              <li>管理员分配位置2～5（位置1也可按需调整）</li>
             </ul>
           </div>
           <div>
