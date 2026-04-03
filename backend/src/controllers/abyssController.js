@@ -13,6 +13,14 @@ const { Op, QueryTypes } = require('sequelize');
 const logger = require('../utils/logger');
 
 class AbyssController {
+  /** 与 getDay()/setDate 一致用本地时区，避免 toISOString() 用 UTC 导致周界错一天、读写对不上 */
+  static toLocalDateOnly(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   static getCurrentWeekRange() {
     const now = new Date();
     const day = now.getDay();
@@ -25,10 +33,9 @@ class AbyssController {
     sunday.setDate(monday.getDate() + 6);
     sunday.setHours(23, 59, 59, 999);
 
-    const toDateOnly = (d) => d.toISOString().slice(0, 10);
     return {
-      weekStart: toDateOnly(monday),
-      weekEnd: toDateOnly(sunday)
+      weekStart: AbyssController.toLocalDateOnly(monday),
+      weekEnd: AbyssController.toLocalDateOnly(sunday)
     };
   }
 
@@ -344,16 +351,22 @@ class AbyssController {
    */
   static async getWeeklyConfig(req, res, next) {
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const todayLocal = AbyssController.toLocalDateOnly(new Date());
       const { weekStart, weekEnd } = AbyssController.getCurrentWeekRange();
 
-      const fourElements = await FourElementsOrder.findOne({
-        where: {
-          week_start_date: { [Op.lte]: today },
-          week_end_date: { [Op.gte]: today }
-        },
-        order: [['week_start_date', 'DESC']]
+      // 与 updateWeeklyConfig 写入的 week_start_date 一致；否则多行「本周」重叠时会取到旧种子行，顶部四象不更新
+      let fourElements = await FourElementsOrder.findOne({
+        where: { week_start_date: weekStart }
       });
+      if (!fourElements) {
+        fourElements = await FourElementsOrder.findOne({
+          where: {
+            week_start_date: { [Op.lte]: todayLocal },
+            week_end_date: { [Op.gte]: todayLocal }
+          },
+          order: [['week_start_date', 'DESC']]
+        });
+      }
 
       const weeklyCode = await RedemptionCode.findOne({
         where: {
@@ -361,7 +374,7 @@ class AbyssController {
           status: 'active',
           [Op.or]: [
             { expiration_date: null },
-            { expiration_date: { [Op.gte]: today } }
+            { expiration_date: { [Op.gte]: todayLocal } }
           ]
         },
         order: [['updated_at', 'DESC']]
