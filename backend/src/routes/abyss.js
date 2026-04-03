@@ -11,13 +11,6 @@ const { auth, authorizeCaptainOrAdmin, authorizeAdmin } = require('../middleware
 router.get('/teams', auth, AbyssController.getTeams);
 
 /**
- * @route POST /api/v1/abyss/teams/seed-defaults
- * @desc 写入默认 1～10 队（MySQL INSERT IGNORE，库空时可救急）
- * @access Private (Captain/Admin)
- */
-router.post('/teams/seed-defaults', auth, authorizeCaptainOrAdmin, AbyssController.seedDefaultTeams);
-
-/**
  * @route GET /api/v1/abyss/schedules
  * @desc 获取深渊排表
  * @access Private

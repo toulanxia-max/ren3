@@ -53,31 +53,6 @@ class AbyssController {
   }
 
   /**
-   * 队长/管理员：向 abyss_teams 写入默认 1～10 队（INSERT IGNORE，可重复执行）
-   */
-  static async seedDefaultTeams(req, res, next) {
-    try {
-      if (req.user?.role !== 'admin' && req.user?.role !== 'captain') {
-        return res.status(403).json({
-          success: false,
-          message: '仅队长或管理员可初始化队伍'
-        });
-      }
-      await AbyssController.ensureDefaultAbyssTeams();
-      const teamCount = await AbyssTeam.count();
-      res.status(200).json({
-        success: true,
-        message:
-          '已写入默认深渊队伍（1～10 队）。生成排表图使用其中 1～9 队：1～4 一张、5～9 一张。',
-        data: { team_count: teamCount }
-      });
-    } catch (error) {
-      logger.error('初始化默认深渊队伍失败:', error);
-      next(error);
-    }
-  }
-
-  /**
    * 获取深渊队伍列表
    */
   static async getTeams(req, res, next) {

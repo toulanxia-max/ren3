@@ -163,19 +163,6 @@ const Abyss = () => {
     return list;
   }, [teamsData]);
 
-  const seedTeamsMutation = useMutation(
-    () => api.post('/abyss/teams/seed-defaults'),
-    {
-      onSuccess: (res) => {
-        toast.success(res?.message || '已写入默认队伍');
-        queryClient.invalidateQueries('abyss-teams');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || '初始化失败');
-      },
-    }
-  );
-
   const [teamsSheet1, teamsSheet2] = useMemo(
     () => splitTeamsForSheets(teamsData),
     [teamsData]
@@ -500,28 +487,18 @@ const Abyss = () => {
                 <div className="flex flex-wrap gap-2 justify-end">
                   <button
                     type="button"
-                    onClick={() => seedTeamsMutation.mutate()}
-                    disabled={seedTeamsMutation.isLoading || teamsLoading}
-                    className="ink-button flex items-center justify-center shrink-0"
+                    onClick={handleExportScheduleSheets}
+                    disabled={scheduleExporting || teamsLoading}
+                    className="ink-button ink-button-primary flex items-center justify-center shrink-0"
                   >
-                    {seedTeamsMutation.isLoading ? '写入中…' : '初始化默认队伍'}
+                    <FiImage className="mr-2" />
+                    {scheduleExporting ? '正在生成图片…' : '生成排表图'}
                   </button>
-                  {(isCaptain || isAdmin) && (
-                    <button
-                      type="button"
-                      onClick={handleExportScheduleSheets}
-                      disabled={scheduleExporting || teamsLoading}
-                      className="ink-button ink-button-primary flex items-center justify-center shrink-0"
-                    >
-                      <FiImage className="mr-2" />
-                      {scheduleExporting ? '正在生成图片…' : '生成排表图'}
-                    </button>
-                  )}
                 </div>
               )}
             </div>
             <p className="text-sm text-ninja-gray -mt-2">
-              共 10 支队伍；每队最多 10 人（1 名队长 + 最多 9 名队员）。每人只能加入一支队伍，已被其他队占用的成员不会出现在选人列表。队长与管理员可添加/移除队员；仅管理员可指定队长、移除队长、以「队长」身份拉人。生成排表图时：1～4 队一张图，5～9 队一张图。列表为空时点「初始化默认队伍」。
+              固定 10 支队伍；每队最多 10 人（1 名队长 + 最多 9 名队员）。每人只能加入一支队伍，已在其他队的成员不会出现在选人列表。队长与管理员可添加/移除队员；仅管理员可指定或移除队长、并以「队长」身份拉人。生成排表图：1～4 队一张图，5～9 队一张图。打开本页时服务端会自动保证库里有这 10 队。
             </p>
 
             {teamsLoading ? (
@@ -541,30 +518,18 @@ const Abyss = () => {
             ) : !teamsData?.length ? (
               <div className="text-center py-12 space-y-3 text-ninja-gray">
                 <p>
-                  当前没有拉到任何队伍。请先点「初始化默认队伍」（需队长/管理员），或在服务器执行{' '}
+                  未获取到队伍数据。请确认已登录，点击下方重试；若仍为空，请管理员检查接口与数据库（或执行仓库内{' '}
                   <code className="text-xs bg-paper-dark px-1 rounded">database/seed_abyss_teams.sql</code>
-                  写入 1～10 队；再点下面重新加载。
+                  ）。
                 </p>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {(isCaptain || isAdmin) && (
-                    <button
-                      type="button"
-                      onClick={() => seedTeamsMutation.mutate()}
-                      disabled={seedTeamsMutation.isLoading}
-                      className="ink-button ink-button-primary inline-flex items-center"
-                    >
-                      {seedTeamsMutation.isLoading ? '写入中…' : '初始化默认队伍'}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => refetchTeams()}
-                    className="ink-button inline-flex items-center"
-                  >
-                    <FiRefreshCw className="mr-2" />
-                    重新加载队伍
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => refetchTeams()}
+                  className="ink-button ink-button-primary inline-flex items-center"
+                >
+                  <FiRefreshCw className="mr-2" />
+                  重新加载
+                </button>
               </div>
             ) : (
               <div className="space-y-6">

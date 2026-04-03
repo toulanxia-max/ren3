@@ -1,4 +1,4 @@
--- 深渊队伍默认数据（与 init.sql、后端 ensureDefaultAbyssTeams 一致）
+-- 深渊队伍默认数据（与 init.sql、GET /abyss/teams 内 ensureDefaultAbyssTeams 一致；仅作手工补库用）
 -- 排表图导出：1～4 队一张 PNG，5～9 队一张 PNG；第 10 队为备用，不参与默认两张图。
 --
 -- 在服务器上执行（把库名、账号换成你的）：
