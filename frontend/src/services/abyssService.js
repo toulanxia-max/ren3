@@ -18,7 +18,8 @@ export const getAbyssSchedule = async (week = null) => {
 export const getAbyssTeams = async () => {
   try {
     const response = await api.get('/abyss/teams');
-    return response.data;
+    const raw = response?.data?.teams ?? response?.teams;
+    return Array.isArray(raw) ? raw : [];
   } catch (error) {
     console.error('获取深渊队伍失败:', error);
     throw error;

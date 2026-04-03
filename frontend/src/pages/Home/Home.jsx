@@ -36,7 +36,11 @@ const Home = () => {
 
   const { data: abyssTeams = [], isLoading: teamsLoading, isFetching: teamsFetching } = useQuery(
     'abyss-teams',
-    () => api.get('/abyss/teams').then((res) => res.data?.teams || []),
+    () =>
+      api.get('/abyss/teams').then((res) => {
+        const raw = res?.data?.teams ?? res?.teams;
+        return Array.isArray(raw) ? raw : [];
+      }),
     queryOpts
   );
 

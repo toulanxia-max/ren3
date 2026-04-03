@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useAuth, api } from '../../contexts/AuthContext';
-import { FiUsers, FiCalendar, FiClock, FiCheckCircle, FiPlus, FiTrash2, FiUserPlus, FiImage } from 'react-icons/fi';
+import { FiUsers, FiCalendar, FiClock, FiCheckCircle, FiPlus, FiTrash2, FiUserPlus, FiImage, FiRefreshCw } from 'react-icons/fi';
 import { GiStoneBlock, GiRank3 } from 'react-icons/gi';
 import { toast } from 'react-hot-toast';
 import html2canvas from 'html2canvas';
@@ -26,9 +26,23 @@ const Abyss = () => {
     return `${window.location.origin}${path.startsWith('/') ? path : `/${path}`}`;
   }, []);
 
-  const { data: teamsData, isLoading: teamsLoading } = useQuery(
+  const {
+    data: teamsData,
+    isLoading: teamsLoading,
+    isError: teamsError,
+    refetch: refetchTeams,
+  } = useQuery(
     'abyss-teams',
-    () => api.get('/abyss/teams').then(res => res.data?.teams || [])
+    () =>
+      api.get('/abyss/teams').then((res) => {
+        const raw = res?.data?.teams ?? res?.teams;
+        return Array.isArray(raw) ? raw : [];
+      }),
+    {
+      onError: (e) => {
+        toast.error(e.response?.data?.message || '获取深渊队伍失败');
+      },
+    }
   );
 
   const [teamsSheet1, teamsSheet2] = useMemo(
@@ -354,6 +368,32 @@ const Abyss = () => {
 
             {teamsLoading ? (
               <div className="text-center py-8 text-ninja-gray">加载中...</div>
+            ) : teamsError ? (
+              <div className="text-center py-12 space-y-3 text-ninja-gray">
+                <p>队伍列表加载失败（请确认已登录且接口正常）。</p>
+                <button
+                  type="button"
+                  onClick={() => refetchTeams()}
+                  className="ink-button ink-button-primary inline-flex items-center"
+                >
+                  <FiRefreshCw className="mr-2" />
+                  重试
+                </button>
+              </div>
+            ) : !teamsData?.length ? (
+              <div className="text-center py-12 space-y-3 text-ninja-gray">
+                <p>
+                  当前没有拉到任何队伍。访问本页时，服务端会自动补全 1～10 队；若仍为空，多半是后端未更新或未登录。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => refetchTeams()}
+                  className="ink-button inline-flex items-center"
+                >
+                  <FiRefreshCw className="mr-2" />
+                  重新加载队伍
+                </button>
+              </div>
             ) : (
               <div className="space-y-4">
                 {teamsData?.map((team) => {

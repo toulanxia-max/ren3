@@ -43,8 +43,7 @@ class AbyssController {
    * 若库中无深渊队伍（未跑 init 种子），补插 1–10 队，与 database/init.sql 一致
    */
   static async ensureDefaultAbyssTeams() {
-    const n = await AbyssTeam.count();
-    if (n > 0) return;
+    // 每次拉列表都执行：缺队则补、已有则 IGNORE；避免「表里曾删过队 / count 误判」导致页面永远空白
     await sequelize.query(
       `INSERT IGNORE INTO abyss_teams (team_number, team_name, status) VALUES
        (1,'第一队','active'),(2,'第二队','active'),(3,'第三队','active'),(4,'第四队','active'),(5,'第五队','active'),
