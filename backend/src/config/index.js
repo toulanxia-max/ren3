@@ -53,9 +53,13 @@ const config = {
     cleanupOldLogs: process.env.CRON_CLEANUP_OLD_LOGS || '0 2 * * *' // 每天凌晨2点
   },
 
-  // 安全配置
+  // 安全配置（CORS_ORIGIN 可逗号分隔多个来源，如 http://公网IP,http://域名）
   security: {
     corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    corsOrigins: (process.env.CORS_ORIGIN || 'http://localhost:3000')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
     rateLimitWindowMs: 15 * 60 * 1000, // 15分钟
     rateLimitMax: 100 // 每个IP每15分钟最多100个请求
   },

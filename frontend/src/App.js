@@ -17,6 +17,7 @@ import AdminUsers from './pages/Admin/AdminUsers';
 import AdminSettings from './pages/Admin/AdminSettings';
 import NotFound from './pages/NotFound/NotFound';
 import { useAuth } from './contexts/AuthContext';
+import { storedSessionTokenOk } from './utils/session';
 
 // 创建React Query客户端
 const queryClient = new QueryClient({
@@ -29,10 +30,17 @@ const queryClient = new QueryClient({
   },
 });
 
-// 私有路由组件
+// 须等 initAuth 结束再渲染受保护页，否则 Home 会与 /auth/me 并发，401 先触发整页跳登录
 const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/login" />;
+  const { loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-ninja-gray bg-paper">
+        加载中…
+      </div>
+    );
+  }
+  return storedSessionTokenOk() ? children : <Navigate to="/login" replace />;
 };
 
 // 管理员路由：以 AuthContext 为准，避免只改 localStorage 不同步

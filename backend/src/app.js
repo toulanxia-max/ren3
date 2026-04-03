@@ -37,9 +37,14 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS配置
+// CORS配置（无 Origin 的请求如 curl、同页部分场景放行）
 const corsOptions = {
-  origin: config.security.corsOrigin,
+  origin: (origin, callback) => {
+    const allow = config.security.corsOrigins;
+    if (!origin) return callback(null, true);
+    if (allow.includes(origin)) return callback(null, true);
+    callback(null, false);
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };

@@ -18,7 +18,7 @@ const auth = async (req, res, next) => {
       });
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
 
     // 验证令牌
     const decoded = jwt.verify(token, config.jwt.secret);

@@ -13,8 +13,11 @@ yarn-error.log*
 
 # 构建输出
 dist/
-build/
 out/
+# 忽略各处的 build/，但保留 frontend/build 供小内存服务器 pull 部署
+build/
+!frontend/build/
+!frontend/build/**
 
 # 日志文件
 logs/

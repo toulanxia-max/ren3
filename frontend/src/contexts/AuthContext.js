@@ -1,25 +1,28 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import api from '../services/api';
 
 // 创建Context
 const AuthContext = createContext({});
 
+function isValidJwtShape(t) {
+  return typeof t === 'string' && t.split('.').length === 3;
+}
+
+function extractUserToken(response) {
+  const payload = response?.data || response || {};
+  const data = payload?.data || {};
+  return {
+    user: data.user || payload.user || null,
+    token: data.token || payload.token || null
+  };
+}
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const extractUserToken = (response) => {
-    const payload = response?.data || response || {};
-    const data = payload?.data || {};
-    return {
-      user: data.user || payload.user || null,
-      token: data.token || payload.token || null
-    };
-  };
-
-  const refreshCurrentUser = async () => {
+  const refreshCurrentUser = useCallback(async () => {
     const response = await api.get('/auth/me', {
       params: { _t: Date.now() },
       headers: {
@@ -33,7 +36,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(latestUser));
     }
     return latestUser;
-  };
+  }, []);
 
   // 初始化：从localStorage恢复用户状态
   useEffect(() => {
@@ -59,27 +62,37 @@ export const AuthProvider = ({ children }) => {
     };
 
     initAuth();
-  }, []);
+  }, [refreshCurrentUser]);
 
   // 登录
   const login = async (username, password) => {
     try {
       const response = await api.post('/auth/login', { username, password });
       const { token, user: userData } = extractUserToken(response);
+      const cleanToken = typeof token === 'string' ? token.trim() : '';
 
-      // 保存到localStorage
-      localStorage.setItem('token', token);
+      if (!userData || !isValidJwtShape(cleanToken)) {
+        toast.error('登录返回数据异常，请刷新页面后重试');
+        return { success: false, error: '登录返回数据异常' };
+      }
+
+      localStorage.setItem('token', cleanToken);
       localStorage.setItem('user', JSON.stringify(userData));
-
-      // 更新状态
       setUser(userData);
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${cleanToken}`;
+
+      // 用受保护接口确认令牌能到达后端（Nginx 未转发 Authorization 时会在这里失败）
+      await refreshCurrentUser();
 
       toast.success('登录成功！');
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.message || '登录失败';
       toast.error(message);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      delete api.defaults.headers.common['Authorization'];
+      setUser(null);
       return { success: false, error: message };
     }
   };
@@ -89,20 +102,29 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/auth/register', userData);
       const { token, user: newUser } = extractUserToken(response);
+      const cleanToken = typeof token === 'string' ? token.trim() : '';
 
-      // 保存到localStorage
-      localStorage.setItem('token', token);
+      if (!newUser || !isValidJwtShape(cleanToken)) {
+        toast.error('注册返回数据异常，请刷新页面后重试');
+        return { success: false, error: '注册返回数据异常' };
+      }
+
+      localStorage.setItem('token', cleanToken);
       localStorage.setItem('user', JSON.stringify(newUser));
-
-      // 更新状态
       setUser(newUser);
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${cleanToken}`;
+
+      await refreshCurrentUser();
 
       toast.success('注册成功！');
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.message || '注册失败';
       toast.error(message);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      delete api.defaults.headers.common['Authorization'];
+      setUser(null);
       return { success: false, error: message };
     }
   };

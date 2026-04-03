@@ -41,12 +41,22 @@ api.interceptors.response.use(
     // 处理常见的HTTP错误
     if (response) {
       switch (response.status) {
-        case 401:
-          // 未授权，清除token并跳转到登录页
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
+        case 401: {
+          // 登录/注册：由页面处理，勿清 token、勿跳转
+          const reqUrl = error.config?.url || '';
+          const isAuthEntry =
+            reqUrl.includes('/auth/login') || reqUrl.includes('/auth/register');
+          // /auth/me：初始化或登录后校验失败时只清会话，勿整页跳转（否则无法区分「密码错」与「令牌未带到后端」）
+          const isSessionProbe = reqUrl.includes('/auth/me');
+          if (!isAuthEntry) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            if (!isSessionProbe) {
+              window.location.href = '/login';
+            }
+          }
           break;
+        }
         case 403:
           // 禁止访问
           console.error('权限不足');
