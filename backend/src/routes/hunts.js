@@ -56,10 +56,17 @@ router.put('/:id/assign-slots', auth, authorizeAdmin, HuntController.assignSlots
 
 /**
  * @route PUT /api/v1/hunts/:id/complete
- * @desc 完成猎杀任务
+ * @desc 完成猎杀任务（仅管理员或发布者）
  * @access Private
  */
 router.put('/:id/complete', auth, HuntController.completeHunt);
+
+/**
+ * @route PUT /api/v1/hunts/:id/reopen
+ * @desc 取消完成标记（仅管理员或发布者）
+ * @access Private
+ */
+router.put('/:id/reopen', auth, HuntController.reopenHunt);
 
 /**
  * @route DELETE /api/v1/hunts/:id

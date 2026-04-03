@@ -5,6 +5,25 @@ import { FiTarget, FiClock, FiCheckCircle, FiUser, FiCalendar } from 'react-icon
 import { GiCrossedSwords, GiHourglass } from 'react-icons/gi';
 import { toast } from 'react-hot-toast';
 
+/** 猎杀用时：从任务创建（上传/发布）到标记完成的时间 */
+function formatHuntElapsedUploadToComplete(createdAt, completedAt) {
+  if (!createdAt || !completedAt) return null;
+  const start = new Date(createdAt).getTime();
+  const end = new Date(completedAt).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
+  const ms = end - start;
+  const totalMins = Math.floor(ms / 60000);
+  const days = Math.floor(totalMins / (60 * 24));
+  const hours = Math.floor((totalMins % (60 * 24)) / 60);
+  const mins = totalMins % 60;
+  const parts = [];
+  if (days > 0) parts.push(`${days}天`);
+  if (hours > 0) parts.push(`${hours}小时`);
+  if (days === 0 && hours === 0 && mins > 0) parts.push(`${mins}分钟`);
+  if (parts.length === 0) return '不足1分钟';
+  return parts.join('');
+}
+
 const SSPlusHunt = () => {
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
@@ -39,6 +58,17 @@ const SSPlusHunt = () => {
     {
       onSuccess: () => {
         toast.success('任务已完成');
+        queryClient.invalidateQueries('hunts-list');
+      },
+      onError: (error) => toast.error(error.response?.data?.message || '操作失败')
+    }
+  );
+
+  const reopenMutation = useMutation(
+    (huntId) => api.put(`/hunts/${huntId}/reopen`),
+    {
+      onSuccess: () => {
+        toast.success('已取消完成标记');
         queryClient.invalidateQueries('hunts-list');
       },
       onError: (error) => toast.error(error.response?.data?.message || '操作失败')
@@ -101,6 +131,9 @@ const SSPlusHunt = () => {
     );
     return activeMembers.filter((member) => !selectedElsewhere.has(member.id));
   };
+
+  const canManageHuntCompletion = (task) =>
+    isAdmin || (user?.id != null && Number(user.id) === Number(task.created_by));
 
   return (
     <div className="space-y-6">
@@ -210,25 +243,46 @@ const SSPlusHunt = () => {
                     </div>
                   </div>
 
-                  <div className="flex space-x-2">
-                    <button
-                      className="ink-button ink-button-primary flex-1"
-                      onClick={() => completeMutation.mutate(task.id)}
-                      disabled={task.status === 'completed'}
-                    >
-                      {task.status === 'completed' ? '已完成' : '标记完成'}
-                    </button>
-                    {isAdmin && (
-                      <button
-                        className="ink-button flex-1 text-accent-red"
-                        onClick={() => {
-                          if (window.confirm('确定删除该猎杀任务吗？')) {
-                            deleteMutation.mutate(task.id);
-                          }
-                        }}
-                      >
-                        删除任务
-                      </button>
+                  <div className="flex flex-col gap-2">
+                    {canManageHuntCompletion(task) ? (
+                      <div className="flex space-x-2">
+                        {task.status === 'completed' ? (
+                          <button
+                            type="button"
+                            className="ink-button flex-1 border border-ink-light"
+                            onClick={() => reopenMutation.mutate(task.id)}
+                            disabled={reopenMutation.isLoading}
+                          >
+                            取消完成标记
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="ink-button ink-button-primary flex-1"
+                            onClick={() => completeMutation.mutate(task.id)}
+                            disabled={completeMutation.isLoading}
+                          >
+                            标记完成
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            className="ink-button flex-1 text-accent-red"
+                            onClick={() => {
+                              if (window.confirm('确定删除该猎杀任务吗？')) {
+                                deleteMutation.mutate(task.id);
+                              }
+                            }}
+                          >
+                            删除任务
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-ninja-gray text-center py-2">
+                        完成状态仅管理员或任务发布者可更改
+                      </p>
                     )}
                   </div>
                 </div>
@@ -310,8 +364,13 @@ const SSPlusHunt = () => {
                   <tr className="border-b border-ink-light">
                     <th className="text-left py-3">日期</th>
                     <th className="text-left py-3">目标</th>
-                    <th className="text-left py-3">猎杀者</th>
-                    <th className="text-left py-3">用时</th>
+                    <th className="text-left py-3">猎杀者（发布者）</th>
+                    <th
+                      className="text-left py-3"
+                      title="从任务发布到标记完成的时间"
+                    >
+                      猎杀用时
+                    </th>
                     <th className="text-left py-3">奖励</th>
                   </tr>
                 </thead>
@@ -322,8 +381,17 @@ const SSPlusHunt = () => {
                       <td className="py-3">
                         <span className="ink-badge ink-badge-red">{record.target_name}</span>
                       </td>
-                      <td className="py-3">{record.completer?.display_name || record.completer?.username || '-'}</td>
-                      <td className="py-3 font-bold">{record.countdown_days_remaining ?? '-'}天</td>
+                      <td className="py-3">
+                        {record.creator?.display_name || record.creator?.username || '—'}
+                      </td>
+                      <td className="py-3 font-bold">
+                        {record.status === 'completed'
+                          ? formatHuntElapsedUploadToComplete(
+                              record.created_at,
+                              record.completed_at
+                            ) || '—'
+                          : '—'}
+                      </td>
                       <td className="py-3">
                         <span className="ink-badge ink-badge-gold">{record.status}</span>
                       </td>
@@ -355,7 +423,7 @@ const SSPlusHunt = () => {
               <li>系统根据识别文本解析倒计时（如 19天22小时）</li>
               <li>系统按天自动刷新剩余天数</li>
               <li>若识别文本不足，可在上传时补充提示</li>
-              <li>任务状态可由成员标记完成</li>
+              <li>仅发布者或管理员可标记完成 / 取消完成</li>
             </ul>
           </div>
         </div>

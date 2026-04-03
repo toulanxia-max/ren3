@@ -57,6 +57,19 @@ class HuntController {
     );
     return remaining;
   }
+
+  /** 成员发布/上传任务时：位置1固定为发布者，其余由管理员分配 */
+  static assignmentSlotsWithUploader(userId) {
+    const id = userId != null ? parseInt(userId, 10) : NaN;
+    return [Number.isFinite(id) ? id : null, null, null, null, null];
+  }
+
+  /** 标记完成 / 取消完成：仅管理员或任务发布者（created_by） */
+  static canManageHuntCompletion(reqUser, hunt) {
+    if (!reqUser || !hunt) return false;
+    if (reqUser.role === 'admin') return true;
+    return Number(reqUser.id) === Number(hunt.created_by);
+  }
   /**
    * 获取猎杀记录列表
    */
@@ -189,7 +202,7 @@ class HuntController {
         status: 'pending',
         countdown_end_at: countdownEndAt,
         countdown_days_remaining: countdownDaysRemaining,
-        assignment_slots: [null, null, null, null, null],
+        assignment_slots: HuntController.assignmentSlotsWithUploader(req.user.id),
         notes: String(notes || '').trim(),
         created_by: req.user.id
       });
@@ -248,6 +261,20 @@ class HuntController {
         });
       }
 
+      if (!HuntController.canManageHuntCompletion(req.user, hunt)) {
+        return res.status(403).json({
+          success: false,
+          message: '仅管理员或任务发布者可标记完成'
+        });
+      }
+
+      if (hunt.status === 'completed') {
+        return res.status(400).json({
+          success: false,
+          message: '任务已是完成状态'
+        });
+      }
+
       await hunt.update({
         status: 'completed',
         completed_by: req.user.id,
@@ -261,6 +288,50 @@ class HuntController {
       });
     } catch (error) {
       logger.error('完成猎杀任务失败:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * 取消完成标记（恢复为待处理）
+   */
+  static async reopenHunt(req, res, next) {
+    try {
+      const hunt = await SSPlusHunt.findByPk(req.params.id);
+      if (!hunt) {
+        return res.status(404).json({
+          success: false,
+          message: '猎杀记录不存在'
+        });
+      }
+
+      if (!HuntController.canManageHuntCompletion(req.user, hunt)) {
+        return res.status(403).json({
+          success: false,
+          message: '仅管理员或任务发布者可取消完成标记'
+        });
+      }
+
+      if (hunt.status !== 'completed') {
+        return res.status(400).json({
+          success: false,
+          message: '当前任务未完成，无需取消'
+        });
+      }
+
+      await hunt.update({
+        status: 'pending',
+        completed_by: null,
+        completed_at: null
+      });
+
+      res.status(200).json({
+        success: true,
+        message: '已取消完成标记',
+        data: { hunt }
+      });
+    } catch (error) {
+      logger.error('取消猎杀完成状态失败:', error);
       next(error);
     }
   }
@@ -332,7 +403,7 @@ class HuntController {
         status: 'pending',
         countdown_end_at: countdownEndAt,
         countdown_days_remaining: countdownDaysRemaining,
-        assignment_slots: [null, null, null, null, null],
+        assignment_slots: HuntController.assignmentSlotsWithUploader(req.user.id),
         notes: req.body?.notes || '',
         created_by: req.user.id
       });
