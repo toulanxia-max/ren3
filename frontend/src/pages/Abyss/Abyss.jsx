@@ -7,6 +7,111 @@ import { toast } from 'react-hot-toast';
 import html2canvas from 'html2canvas';
 import AbyssScheduleSheet, { splitTeamsForSheets } from '../../components/AbyssScheduleSheet/AbyssScheduleSheet';
 
+function AbyssTeamManagementCard({
+  team,
+  isCaptain,
+  isAdmin,
+  onOpenAddMember,
+  onRemoveMember,
+  onSetCaptain,
+}) {
+  const members = team.members || [];
+  const captain = members.find((m) => m.role === 'captain');
+  const teamMembers = members.filter((m) => m.role !== 'captain');
+
+  return (
+    <div className="border border-ink-light rounded-lg p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center">
+          <div className="text-2xl font-bold text-accent-red mr-3">{team.team_name}</div>
+          <span className="text-sm text-ninja-gray">共 {members.length} 人</span>
+        </div>
+        {isCaptain && (
+          <button
+            type="button"
+            onClick={onOpenAddMember}
+            className="ink-button ink-button-primary flex items-center text-sm"
+          >
+            <FiUserPlus className="mr-1" />
+            添加成员
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {captain ? (
+          <div className="flex items-center justify-between p-2 bg-red-50 rounded-lg">
+            <div className="flex items-center">
+              <span className="ink-badge ink-badge-red mr-2">队长</span>
+              <span className="font-medium">
+                {captain.user?.display_name || captain.user?.username || '未知'}
+              </span>
+              <span className="text-sm text-ninja-gray ml-2">(ID: {captain.user?.game_id})</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-ninja-gray">
+                {new Date(captain.joined_at).toLocaleDateString('zh-CN')}
+              </span>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveMember(captain.id)}
+                  className="text-accent-red hover:text-red-700"
+                  title="移除队长"
+                >
+                  <FiTrash2 />
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="p-2 bg-yellow-50 rounded-lg text-yellow-700 text-sm">
+            暂无队长，请添加成员并设置队长
+          </div>
+        )}
+
+        {teamMembers.length > 0 ? (
+          teamMembers.map((member) => (
+            <div key={member.id} className="flex items-center justify-between p-2 bg-paper-dark rounded-lg">
+              <div className="flex items-center">
+                <span className="text-ninja-gray mr-2">{members.indexOf(member) + 2}.</span>
+                <span className="font-medium">
+                  {member.user?.display_name || member.user?.username || '未知'}
+                </span>
+                <span className="text-sm text-ninja-gray ml-2">(ID: {member.user?.game_id})</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                {isCaptain && (
+                  <>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => onSetCaptain(team.id, member.id)}
+                        className="text-sm text-accent-blue hover:underline"
+                      >
+                        设为队长
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onRemoveMember(member.id)}
+                      className="text-accent-red hover:text-red-700"
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-sm text-ninja-gray p-2">暂无其他成员</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const Abyss = () => {
   const { user, isAdmin, isCaptain } = useAuth();
   const queryClient = useQueryClient();
@@ -41,6 +146,31 @@ const Abyss = () => {
     {
       onError: (e) => {
         toast.error(e.response?.data?.message || '获取深渊队伍失败');
+      },
+    }
+  );
+
+  const teamsGrouped = useMemo(() => {
+    const list = Array.isArray(teamsData) ? [...teamsData] : [];
+    list.sort((a, b) => (Number(a.team_number) || 0) - (Number(b.team_number) || 0));
+    const num = (t) => Number(t.team_number);
+    const sheet1 = list.filter((t) => num(t) >= 1 && num(t) <= 4);
+    const sheet2 = list.filter((t) => num(t) >= 5 && num(t) <= 9);
+    const spare = list.filter((t) => num(t) === 10);
+    const used = new Set([...sheet1, ...sheet2, ...spare].map((t) => t.id));
+    const other = list.filter((t) => !used.has(t.id));
+    return { sheet1, sheet2, spare, other };
+  }, [teamsData]);
+
+  const seedTeamsMutation = useMutation(
+    () => api.post('/abyss/teams/seed-defaults'),
+    {
+      onSuccess: (res) => {
+        toast.success(res?.message || '已写入默认队伍');
+        queryClient.invalidateQueries('abyss-teams');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || '初始化失败');
       },
     }
   );
@@ -350,20 +480,34 @@ const Abyss = () => {
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <h2 className="text-xl font-bold">深渊队伍管理</h2>
-              {isCaptain && (
-                <button
-                  type="button"
-                  onClick={handleExportScheduleSheets}
-                  disabled={scheduleExporting || teamsLoading}
-                  className="ink-button flex items-center justify-center shrink-0"
-                >
-                  <FiImage className="mr-2" />
-                  {scheduleExporting ? '正在生成图片…' : '生成排表图'}
-                </button>
+              {(isCaptain || isAdmin) && (
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => seedTeamsMutation.mutate()}
+                    disabled={seedTeamsMutation.isLoading || teamsLoading}
+                    className="ink-button flex items-center justify-center shrink-0"
+                  >
+                    {seedTeamsMutation.isLoading ? '写入中…' : '初始化默认队伍'}
+                  </button>
+                  {isCaptain && (
+                    <button
+                      type="button"
+                      onClick={handleExportScheduleSheets}
+                      disabled={scheduleExporting || teamsLoading}
+                      className="ink-button ink-button-primary flex items-center justify-center shrink-0"
+                    >
+                      <FiImage className="mr-2" />
+                      {scheduleExporting ? '正在生成图片…' : '生成排表图'}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
             <p className="text-sm text-ninja-gray -mt-2">
-              按「紫川深渊排表」样式导出两张图：1～4 队一张、5～9 队一张；每队 5×2 共 10 格，队长在首位并黄色底纹，缺人留空。请在各队「添加成员」中维护队员名单后再导出。
+              下方按排表分成两组共 9 队（1～4、5～9），对应两张「紫川深渊排表」图；第 10 队为备用。每队 5×2 共 10 格，队长首位黄底。若列表为空，请先点「初始化默认队伍」，或在服务器 MySQL 执行{' '}
+              <code className="text-xs bg-paper-dark px-1 rounded">database/seed_abyss_teams.sql</code>
+              。
             </p>
 
             {teamsLoading ? (
@@ -383,124 +527,140 @@ const Abyss = () => {
             ) : !teamsData?.length ? (
               <div className="text-center py-12 space-y-3 text-ninja-gray">
                 <p>
-                  当前没有拉到任何队伍。访问本页时，服务端会自动补全 1～10 队；若仍为空，多半是后端未更新或未登录。
+                  当前没有拉到任何队伍。请先点「初始化默认队伍」（需队长/管理员），或在服务器执行{' '}
+                  <code className="text-xs bg-paper-dark px-1 rounded">database/seed_abyss_teams.sql</code>
+                  写入 1～10 队；再点下面重新加载。
                 </p>
-                <button
-                  type="button"
-                  onClick={() => refetchTeams()}
-                  className="ink-button inline-flex items-center"
-                >
-                  <FiRefreshCw className="mr-2" />
-                  重新加载队伍
-                </button>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {(isCaptain || isAdmin) && (
+                    <button
+                      type="button"
+                      onClick={() => seedTeamsMutation.mutate()}
+                      disabled={seedTeamsMutation.isLoading}
+                      className="ink-button ink-button-primary inline-flex items-center"
+                    >
+                      {seedTeamsMutation.isLoading ? '写入中…' : '初始化默认队伍'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => refetchTeams()}
+                    className="ink-button inline-flex items-center"
+                  >
+                    <FiRefreshCw className="mr-2" />
+                    重新加载队伍
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                {teamsData?.map((team) => {
-                  const members = team.members || [];
-                  const captain = members.find(m => m.role === 'captain');
-                  const teamMembers = members.filter(m => m.role !== 'captain');
-
-                  return (
-                    <div key={team.id} className="border border-ink-light rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center">
-                          <div className="text-2xl font-bold text-accent-red mr-3">{team.team_name}</div>
-                          <span className="text-sm text-ninja-gray">
-                            共 {members.length} 人
-                          </span>
-                        </div>
-                        {isCaptain && (
-                          <button
-                            onClick={() => {
-                              setSelectedTeam(team);
-                              setMemberSearch('');
-                              setShowMemberModal(true);
-                            }}
-                            className="ink-button ink-button-primary flex items-center text-sm"
-                          >
-                            <FiUserPlus className="mr-1" />
-                            添加成员
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        {captain ? (
-                          <div className="flex items-center justify-between p-2 bg-red-50 rounded-lg">
-                            <div className="flex items-center">
-                              <span className="ink-badge ink-badge-red mr-2">队长</span>
-                              <span className="font-medium">
-                                {captain.user?.display_name || captain.user?.username || '未知'}
-                              </span>
-                              <span className="text-sm text-ninja-gray ml-2">
-                                (ID: {captain.user?.game_id})
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                              <span className="text-sm text-ninja-gray">
-                                {new Date(captain.joined_at).toLocaleDateString('zh-CN')}
-                              </span>
-                              {isAdmin && (
-                                <button
-                                  onClick={() => handleRemoveMember(captain.id)}
-                                  className="text-accent-red hover:text-red-700"
-                                  title="移除队长"
-                                >
-                                  <FiTrash2 />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="p-2 bg-yellow-50 rounded-lg text-yellow-700 text-sm">
-                            暂无队长，请添加成员并设置队长
-                          </div>
-                        )}
-
-                        {teamMembers.length > 0 ? (
-                          teamMembers.map((member) => (
-                            <div key={member.id} className="flex items-center justify-between p-2 bg-paper-dark rounded-lg">
-                              <div className="flex items-center">
-                                <span className="text-ninja-gray mr-2">{members.indexOf(member) + 2}.</span>
-                                <span className="font-medium">
-                                  {member.user?.display_name || member.user?.username || '未知'}
-                                </span>
-                                <span className="text-sm text-ninja-gray ml-2">
-                                  (ID: {member.user?.game_id})
-                                </span>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                {isCaptain && (
-                                  <>
-                                    {isAdmin && (
-                                      <button
-                                        onClick={() => handleSetCaptain(team.id, member.id)}
-                                        className="text-sm text-accent-blue hover:underline"
-                                      >
-                                        设为队长
-                                      </button>
-                                    )}
-                                    <button
-                                      onClick={() => handleRemoveMember(member.id)}
-                                      className="text-accent-red hover:text-red-700"
-                                    >
-                                      <FiTrash2 />
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-sm text-ninja-gray p-2">
-                            暂无其他成员
-                          </div>
-                        )}
-                      </div>
+              <div className="space-y-10">
+                <section className="space-y-3">
+                  <h3 className="text-lg font-serif font-bold text-ink">第一张排表：1～4 队</h3>
+                  <p className="text-sm text-ninja-gray">导出 PNG「紫川深渊排表-1至4队」时使用本节 4 个队伍块。</p>
+                  {teamsGrouped.sheet1.length === 0 ? (
+                    <div className="text-sm text-ninja-gray border border-dashed border-ink-light rounded-lg p-4">
+                      暂无 1～4 队。请点击「初始化默认队伍」或执行 SQL 种子。
                     </div>
-                  );
-                })}
+                  ) : (
+                    <div className="space-y-4">
+                      {teamsGrouped.sheet1.map((team) => (
+                        <AbyssTeamManagementCard
+                          key={team.id}
+                          team={team}
+                          isCaptain={isCaptain}
+                          isAdmin={isAdmin}
+                          onOpenAddMember={() => {
+                            setSelectedTeam(team);
+                            setMemberSearch('');
+                            setShowMemberModal(true);
+                          }}
+                          onRemoveMember={handleRemoveMember}
+                          onSetCaptain={handleSetCaptain}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section className="space-y-3">
+                  <h3 className="text-lg font-serif font-bold text-ink">第二张排表：5～9 队</h3>
+                  <p className="text-sm text-ninja-gray">导出 PNG「紫川深渊排表-5至9队」时使用本节 5 个队伍块（共 9 队参与排表）。</p>
+                  {teamsGrouped.sheet2.length === 0 ? (
+                    <div className="text-sm text-ninja-gray border border-dashed border-ink-light rounded-lg p-4">
+                      暂无 5～9 队。请点击「初始化默认队伍」或执行 SQL 种子。
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {teamsGrouped.sheet2.map((team) => (
+                        <AbyssTeamManagementCard
+                          key={team.id}
+                          team={team}
+                          isCaptain={isCaptain}
+                          isAdmin={isAdmin}
+                          onOpenAddMember={() => {
+                            setSelectedTeam(team);
+                            setMemberSearch('');
+                            setShowMemberModal(true);
+                          }}
+                          onRemoveMember={handleRemoveMember}
+                          onSetCaptain={handleSetCaptain}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section className="space-y-3">
+                  <h3 className="text-lg font-serif font-bold text-ink">第 10 队（备用）</h3>
+                  <p className="text-sm text-ninja-gray">默认两张排表图不包含本队；仍可在此维护成员。</p>
+                  {teamsGrouped.spare.length === 0 ? (
+                    <div className="text-sm text-ninja-gray border border-dashed border-ink-light rounded-lg p-4">
+                      暂无第 10 队记录。初始化默认队伍后会自动出现。
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {teamsGrouped.spare.map((team) => (
+                        <AbyssTeamManagementCard
+                          key={team.id}
+                          team={team}
+                          isCaptain={isCaptain}
+                          isAdmin={isAdmin}
+                          onOpenAddMember={() => {
+                            setSelectedTeam(team);
+                            setMemberSearch('');
+                            setShowMemberModal(true);
+                          }}
+                          onRemoveMember={handleRemoveMember}
+                          onSetCaptain={handleSetCaptain}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {teamsGrouped.other.length > 0 && (
+                  <section className="space-y-3">
+                    <h3 className="text-lg font-serif font-bold text-ink">其它队伍</h3>
+                    <p className="text-sm text-ninja-gray">编号不在 1～10 范围内的数据（需核对 team_number）。</p>
+                    <div className="space-y-4">
+                      {teamsGrouped.other.map((team) => (
+                        <AbyssTeamManagementCard
+                          key={team.id}
+                          team={team}
+                          isCaptain={isCaptain}
+                          isAdmin={isAdmin}
+                          onOpenAddMember={() => {
+                            setSelectedTeam(team);
+                            setMemberSearch('');
+                            setShowMemberModal(true);
+                          }}
+                          onRemoveMember={handleRemoveMember}
+                          onSetCaptain={handleSetCaptain}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
               </div>
             )}
             {/* 离屏渲染，供 html2canvas 截图（队长/管理员可见按钮时仍挂载，避免 ref 为空） */}
