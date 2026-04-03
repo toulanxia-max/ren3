@@ -7,6 +7,23 @@ import { toast } from 'react-hot-toast';
 import html2canvas from 'html2canvas';
 import AbyssScheduleSheet, { splitTeamsForSheets } from '../../components/AbyssScheduleSheet/AbyssScheduleSheet';
 
+const MAX_ABYSS_TEAM = 10;
+
+function buildTeamSlots(team) {
+  const members = team.members || [];
+  const captain = members.find((m) => m.role === 'captain');
+  const others = members.filter((m) => m.role !== 'captain').sort((a, b) => a.id - b.id);
+  const slots = [];
+  if (captain) slots.push({ kind: 'm', member: captain, isCap: true });
+  others.forEach((m) => slots.push({ kind: 'm', member: m, isCap: false }));
+  while (slots.length < MAX_ABYSS_TEAM) slots.push({ kind: 'e' });
+  return slots.slice(0, MAX_ABYSS_TEAM);
+}
+
+function displayMemberName(m) {
+  return (m?.user?.display_name || m?.user?.username || '未知').trim() || '未知';
+}
+
 function AbyssTeamManagementCard({
   team,
   isCaptain,
@@ -15,98 +32,88 @@ function AbyssTeamManagementCard({
   onRemoveMember,
   onSetCaptain,
 }) {
+  const canManage = isCaptain || isAdmin;
   const members = team.members || [];
-  const captain = members.find((m) => m.role === 'captain');
-  const teamMembers = members.filter((m) => m.role !== 'captain');
+  const count = members.length;
+  const atCapacity = count >= MAX_ABYSS_TEAM;
+  const slots = useMemo(() => buildTeamSlots(team), [team]);
 
   return (
     <div className="border border-ink-light rounded-lg p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center">
-          <div className="text-2xl font-bold text-accent-red mr-3">{team.team_name}</div>
-          <span className="text-sm text-ninja-gray">共 {members.length} 人</span>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+        <div>
+          <div className="text-xl font-bold text-accent-red">{team.team_name}</div>
+          <p className="text-sm text-ninja-gray mt-0.5">
+            {count} / {MAX_ABYSS_TEAM} 人（含 1 名队长）；每人只能在一支队伍
+          </p>
         </div>
-        {isCaptain && (
+        {canManage && !atCapacity && (
           <button
             type="button"
             onClick={onOpenAddMember}
-            className="ink-button ink-button-primary flex items-center text-sm"
+            className="ink-button ink-button-primary flex items-center text-sm shrink-0"
           >
             <FiUserPlus className="mr-1" />
             添加成员
           </button>
         )}
+        {canManage && atCapacity && (
+          <span className="text-sm text-ninja-gray shrink-0">已满员，需先移除成员</span>
+        )}
       </div>
 
-      <div className="space-y-2">
-        {captain ? (
-          <div className="flex items-center justify-between p-2 bg-red-50 rounded-lg">
-            <div className="flex items-center">
-              <span className="ink-badge ink-badge-red mr-2">队长</span>
-              <span className="font-medium">
-                {captain.user?.display_name || captain.user?.username || '未知'}
-              </span>
-              <span className="text-sm text-ninja-gray ml-2">(ID: {captain.user?.game_id})</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <span className="text-sm text-ninja-gray">
-                {new Date(captain.joined_at).toLocaleDateString('zh-CN')}
-              </span>
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => onRemoveMember(captain.id)}
-                  className="text-accent-red hover:text-red-700"
-                  title="移除队长"
-                >
-                  <FiTrash2 />
-                </button>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="p-2 bg-yellow-50 rounded-lg text-yellow-700 text-sm">
-            暂无队长，请添加成员并设置队长
-          </div>
-        )}
-
-        {teamMembers.length > 0 ? (
-          teamMembers.map((member) => (
-            <div key={member.id} className="flex items-center justify-between p-2 bg-paper-dark rounded-lg">
-              <div className="flex items-center">
-                <span className="text-ninja-gray mr-2">{members.indexOf(member) + 2}.</span>
-                <span className="font-medium">
-                  {member.user?.display_name || member.user?.username || '未知'}
-                </span>
-                <span className="text-sm text-ninja-gray ml-2">(ID: {member.user?.game_id})</span>
+      <p className="text-xs text-ninja-gray mb-2">席位 5×2（与排表图一致）；队长在 1 号格黄底</p>
+      <div className="grid grid-cols-5 gap-2">
+        {slots.map((slot, idx) => {
+          if (slot.kind === 'e') {
+            return (
+              <div
+                key={`e-${idx}`}
+                className="rounded border border-dashed border-ink-light bg-paper-dark/50 min-h-[4.5rem] flex items-center justify-center text-xs text-ninja-gray"
+              >
+                空位
               </div>
-              <div className="flex items-center space-x-2">
-                {isCaptain && (
-                  <>
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => onSetCaptain(team.id, member.id)}
-                        className="text-sm text-accent-blue hover:underline"
-                      >
-                        设为队长
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => onRemoveMember(member.id)}
-                      className="text-accent-red hover:text-red-700"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </>
+            );
+          }
+          const { member, isCap } = slot;
+          const canRemove = isCap ? isAdmin : canManage;
+          return (
+            <div
+              key={member.id}
+              className={`rounded border border-ink-light min-h-[4.5rem] p-2 flex flex-col justify-between text-sm ${
+                isCap ? 'bg-yellow-50' : 'bg-paper-dark'
+              }`}
+            >
+              <div>
+                <div className="text-[10px] text-ninja-gray mb-0.5">{idx + 1}</div>
+                {isCap && <span className="ink-badge ink-badge-red text-[10px] mr-1">队长</span>}
+                <div className="font-medium text-xs leading-tight break-all">{displayMemberName(member)}</div>
+                <div className="text-[10px] text-ninja-gray truncate">ID {member.user?.game_id ?? '—'}</div>
+              </div>
+              <div className="flex flex-wrap gap-1 mt-1 justify-end">
+                {!isCap && isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => onSetCaptain(team.id, member.id)}
+                    className="text-[10px] text-accent-blue hover:underline"
+                  >
+                    升为队长
+                  </button>
+                )}
+                {canRemove && (
+                  <button
+                    type="button"
+                    onClick={() => onRemoveMember(member.id)}
+                    className="text-accent-red hover:text-red-700 p-0.5"
+                    title="移除"
+                  >
+                    <FiTrash2 className="w-3.5 h-3.5" />
+                  </button>
                 )}
               </div>
             </div>
-          ))
-        ) : (
-          <div className="text-sm text-ninja-gray p-2">暂无其他成员</div>
-        )}
+          );
+        })}
       </div>
     </div>
   );
@@ -150,16 +157,10 @@ const Abyss = () => {
     }
   );
 
-  const teamsGrouped = useMemo(() => {
+  const teamsSorted = useMemo(() => {
     const list = Array.isArray(teamsData) ? [...teamsData] : [];
     list.sort((a, b) => (Number(a.team_number) || 0) - (Number(b.team_number) || 0));
-    const num = (t) => Number(t.team_number);
-    const sheet1 = list.filter((t) => num(t) >= 1 && num(t) <= 4);
-    const sheet2 = list.filter((t) => num(t) >= 5 && num(t) <= 9);
-    const spare = list.filter((t) => num(t) === 10);
-    const used = new Set([...sheet1, ...sheet2, ...spare].map((t) => t.id));
-    const other = list.filter((t) => !used.has(t.id));
-    return { sheet1, sheet2, spare, other };
+    return list;
   }, [teamsData]);
 
   const seedTeamsMutation = useMutation(
@@ -363,17 +364,32 @@ const Abyss = () => {
     e.target.reset();
   };
 
-  const allMembers = usersData?.filter(u => u.status === 'active') || [];
-  const activeLeaveUserIds = new Set((activeLeavesData || []).map((leave) => leave.user_id));
+  const allMembers = useMemo(
+    () => usersData?.filter((u) => u.status === 'active') || [],
+    [usersData]
+  );
+  const activeLeaveUserIds = useMemo(
+    () => new Set((activeLeavesData || []).map((leave) => leave.user_id)),
+    [activeLeavesData]
+  );
   const isCurrentUserOnLeave = (activeLeavesData || []).some((leave) => leave.user_id === user?.id);
 
-  const getAvailableMembers = (team) => {
-    const currentMemberIds = team.members?.map(m => m.user_id) || [];
-    return allMembers.filter((m) => !currentMemberIds.includes(m.id) && !activeLeaveUserIds.has(m.id));
-  };
+  const assignedAbyssUserIds = useMemo(() => {
+    const s = new Set();
+    (teamsData || []).forEach((t) => {
+      (t.members || []).forEach((m) => s.add(m.user_id));
+    });
+    return s;
+  }, [teamsData]);
 
-  const getFilteredMembers = (team) => {
-    const availableMembers = getAvailableMembers(team);
+  const getAvailableMembers = useCallback(() => {
+    return allMembers.filter(
+      (m) => !assignedAbyssUserIds.has(m.id) && !activeLeaveUserIds.has(m.id)
+    );
+  }, [allMembers, assignedAbyssUserIds, activeLeaveUserIds]);
+
+  const getFilteredMembers = useCallback(() => {
+    const availableMembers = getAvailableMembers();
     const keyword = memberSearch.trim().toLowerCase();
 
     if (!keyword) {
@@ -387,7 +403,7 @@ const Abyss = () => {
 
       return displayName.includes(keyword) || username.includes(keyword) || gameId.includes(keyword);
     });
-  };
+  }, [getAvailableMembers, memberSearch]);
 
   return (
     <div className="space-y-6">
@@ -490,7 +506,7 @@ const Abyss = () => {
                   >
                     {seedTeamsMutation.isLoading ? '写入中…' : '初始化默认队伍'}
                   </button>
-                  {isCaptain && (
+                  {(isCaptain || isAdmin) && (
                     <button
                       type="button"
                       onClick={handleExportScheduleSheets}
@@ -505,9 +521,7 @@ const Abyss = () => {
               )}
             </div>
             <p className="text-sm text-ninja-gray -mt-2">
-              下方按排表分成两组共 9 队（1～4、5～9），对应两张「紫川深渊排表」图；第 10 队为备用。每队 5×2 共 10 格，队长首位黄底。若列表为空，请先点「初始化默认队伍」，或在服务器 MySQL 执行{' '}
-              <code className="text-xs bg-paper-dark px-1 rounded">database/seed_abyss_teams.sql</code>
-              。
+              共 10 支队伍；每队最多 10 人（1 名队长 + 最多 9 名队员）。每人只能加入一支队伍，已被其他队占用的成员不会出现在选人列表。队长与管理员可添加/移除队员；仅管理员可指定队长、移除队长、以「队长」身份拉人。生成排表图时：1～4 队一张图，5～9 队一张图。列表为空时点「初始化默认队伍」。
             </p>
 
             {teamsLoading ? (
@@ -553,118 +567,26 @@ const Abyss = () => {
                 </div>
               </div>
             ) : (
-              <div className="space-y-10">
-                <section className="space-y-3">
-                  <h3 className="text-lg font-serif font-bold text-ink">第一张排表：1～4 队</h3>
-                  <p className="text-sm text-ninja-gray">导出 PNG「紫川深渊排表-1至4队」时使用本节 4 个队伍块。</p>
-                  {teamsGrouped.sheet1.length === 0 ? (
-                    <div className="text-sm text-ninja-gray border border-dashed border-ink-light rounded-lg p-4">
-                      暂无 1～4 队。请点击「初始化默认队伍」或执行 SQL 种子。
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {teamsGrouped.sheet1.map((team) => (
-                        <AbyssTeamManagementCard
-                          key={team.id}
-                          team={team}
-                          isCaptain={isCaptain}
-                          isAdmin={isAdmin}
-                          onOpenAddMember={() => {
-                            setSelectedTeam(team);
-                            setMemberSearch('');
-                            setShowMemberModal(true);
-                          }}
-                          onRemoveMember={handleRemoveMember}
-                          onSetCaptain={handleSetCaptain}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                <section className="space-y-3">
-                  <h3 className="text-lg font-serif font-bold text-ink">第二张排表：5～9 队</h3>
-                  <p className="text-sm text-ninja-gray">导出 PNG「紫川深渊排表-5至9队」时使用本节 5 个队伍块（共 9 队参与排表）。</p>
-                  {teamsGrouped.sheet2.length === 0 ? (
-                    <div className="text-sm text-ninja-gray border border-dashed border-ink-light rounded-lg p-4">
-                      暂无 5～9 队。请点击「初始化默认队伍」或执行 SQL 种子。
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {teamsGrouped.sheet2.map((team) => (
-                        <AbyssTeamManagementCard
-                          key={team.id}
-                          team={team}
-                          isCaptain={isCaptain}
-                          isAdmin={isAdmin}
-                          onOpenAddMember={() => {
-                            setSelectedTeam(team);
-                            setMemberSearch('');
-                            setShowMemberModal(true);
-                          }}
-                          onRemoveMember={handleRemoveMember}
-                          onSetCaptain={handleSetCaptain}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                <section className="space-y-3">
-                  <h3 className="text-lg font-serif font-bold text-ink">第 10 队（备用）</h3>
-                  <p className="text-sm text-ninja-gray">默认两张排表图不包含本队；仍可在此维护成员。</p>
-                  {teamsGrouped.spare.length === 0 ? (
-                    <div className="text-sm text-ninja-gray border border-dashed border-ink-light rounded-lg p-4">
-                      暂无第 10 队记录。初始化默认队伍后会自动出现。
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {teamsGrouped.spare.map((team) => (
-                        <AbyssTeamManagementCard
-                          key={team.id}
-                          team={team}
-                          isCaptain={isCaptain}
-                          isAdmin={isAdmin}
-                          onOpenAddMember={() => {
-                            setSelectedTeam(team);
-                            setMemberSearch('');
-                            setShowMemberModal(true);
-                          }}
-                          onRemoveMember={handleRemoveMember}
-                          onSetCaptain={handleSetCaptain}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                {teamsGrouped.other.length > 0 && (
-                  <section className="space-y-3">
-                    <h3 className="text-lg font-serif font-bold text-ink">其它队伍</h3>
-                    <p className="text-sm text-ninja-gray">编号不在 1～10 范围内的数据（需核对 team_number）。</p>
-                    <div className="space-y-4">
-                      {teamsGrouped.other.map((team) => (
-                        <AbyssTeamManagementCard
-                          key={team.id}
-                          team={team}
-                          isCaptain={isCaptain}
-                          isAdmin={isAdmin}
-                          onOpenAddMember={() => {
-                            setSelectedTeam(team);
-                            setMemberSearch('');
-                            setShowMemberModal(true);
-                          }}
-                          onRemoveMember={handleRemoveMember}
-                          onSetCaptain={handleSetCaptain}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                )}
+              <div className="space-y-6">
+                {teamsSorted.map((team) => (
+                  <AbyssTeamManagementCard
+                    key={team.id}
+                    team={team}
+                    isCaptain={isCaptain}
+                    isAdmin={isAdmin}
+                    onOpenAddMember={() => {
+                      setSelectedTeam(team);
+                      setMemberSearch('');
+                      setShowMemberModal(true);
+                    }}
+                    onRemoveMember={handleRemoveMember}
+                    onSetCaptain={handleSetCaptain}
+                  />
+                ))}
               </div>
             )}
             {/* 离屏渲染，供 html2canvas 截图（队长/管理员可见按钮时仍挂载，避免 ref 为空） */}
-            {isCaptain && (
+            {(isCaptain || isAdmin) && (
               <div
                 className="fixed left-[-12000px] top-0 pointer-events-none opacity-100"
                 aria-hidden
@@ -909,24 +831,31 @@ const Abyss = () => {
                   placeholder="输入昵称/用户名/游戏ID"
                 />
                 <p className="text-xs text-ninja-gray mt-1">
-                  共 {getAvailableMembers(selectedTeam).length} 人，可显示 {getFilteredMembers(selectedTeam).length} 人
+                  可选 {getAvailableMembers().length} 人（未进任何深渊队且非请假中）；列表可上下滑动浏览
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">选择成员</label>
-                <select name="user_id" required className="brush-input">
+                <select
+                  name="user_id"
+                  required
+                  className="brush-input w-full font-sans"
+                  size={10}
+                >
                   <option value="">请选择家族成员</option>
-                  {getFilteredMembers(selectedTeam).map(m => (
+                  {getFilteredMembers().map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.display_name || m.username} (ID: {m.game_id})
                     </option>
                   ))}
                 </select>
-                {getAvailableMembers(selectedTeam).length === 0 && (
-                  <p className="text-sm text-ninja-gray mt-1">所有成员都已在该队伍中</p>
+                {getAvailableMembers().length === 0 && (
+                  <p className="text-sm text-ninja-gray mt-1">
+                    没有可加入的成员（可能已全部进队或请假中）
+                  </p>
                 )}
-                {getAvailableMembers(selectedTeam).length > 0 && getFilteredMembers(selectedTeam).length === 0 && (
+                {getAvailableMembers().length > 0 && getFilteredMembers().length === 0 && (
                   <p className="text-sm text-ninja-gray mt-1">没有匹配的成员，请调整搜索关键词</p>
                 )}
               </div>

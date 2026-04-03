@@ -58,6 +58,14 @@ class AbyssTeamMemberController {
         });
       }
 
+      const teamSize = await AbyssTeamMember.count({ where: { team_id } });
+      if (teamSize >= 10) {
+        return res.status(400).json({
+          success: false,
+          message: '该队已满员（每队最多 10 人，含 1 名队长）'
+        });
+      }
+
       const user = await User.findByPk(user_id);
       if (!user) {
         return res.status(404).json({
