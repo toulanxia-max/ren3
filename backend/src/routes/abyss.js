@@ -39,6 +39,13 @@ router.post('/schedules', auth, authorizeCaptainOrAdmin, AbyssController.createS
 router.put('/schedules/:id', auth, authorizeCaptainOrAdmin, AbyssController.updateSchedule);
 
 /**
+ * @route DELETE /api/v1/abyss/schedules/:id
+ * @desc 删除深渊排表记录（队长或管理员）
+ * @access Private (Captain/Admin)
+ */
+router.delete('/schedules/:id', auth, authorizeCaptainOrAdmin, AbyssController.deleteSchedule);
+
+/**
  * @route POST /api/v1/abyss/records
  * @desc 提交深渊战绩
  * @access Private

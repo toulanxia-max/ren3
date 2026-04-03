@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useAuth, api } from '../../contexts/AuthContext';
-import { FiUsers, FiCalendar, FiClock, FiCheckCircle, FiPlus, FiTrash2, FiUserPlus, FiImage } from 'react-icons/fi';
+import { FiUsers, FiCalendar, FiClock, FiCheckCircle, FiPlus, FiTrash2, FiUserPlus, FiImage, FiGrid } from 'react-icons/fi';
 import { GiStoneBlock, GiRank3 } from 'react-icons/gi';
 import { toast } from 'react-hot-toast';
 import html2canvas from 'html2canvas';
@@ -12,6 +12,7 @@ const Abyss = () => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('schedule');
   const [showRecordModal, setShowRecordModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [memberSearch, setMemberSearch] = useState('');
@@ -25,6 +26,16 @@ const Abyss = () => {
     const path = `${pub}/clan-logo.png`.replace(/([^:])\/{2,}/g, '$1/');
     return `${window.location.origin}${path.startsWith('/') ? path : `/${path}`}`;
   }, []);
+
+  const isoWeekFromDateString = (dateStr) => {
+    if (!dateStr) return 1;
+    const d = new Date(`${dateStr}T12:00:00`);
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const day = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - day);
+    const y1 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    return Math.ceil((((t - y1) / 86400000) + 1) / 7);
+  };
 
   const { data: teamsData, isLoading: teamsLoading, refetch: refetchTeams } = useQuery(
     'abyss-teams',
@@ -98,6 +109,11 @@ const Abyss = () => {
     () => api.get('/users').then(res => res.data?.users || [])
   );
 
+  const { data: schedulesData, isLoading: schedulesLoading } = useQuery(
+    'abyss-schedules',
+    () => api.get('/abyss/schedules').then((res) => res.data?.schedules || [])
+  );
+
   const { data: myLeavesData, isLoading: leavesLoading } = useQuery(
     'my-leaves',
     () => api.get('/abyss/leaves/me').then(res => res.data?.leaves || [])
@@ -106,6 +122,45 @@ const Abyss = () => {
   const { data: activeLeavesData } = useQuery(
     'active-leaves',
     () => api.get('/abyss/leaves/active').then(res => res.data?.leaves || [])
+  );
+
+  const createScheduleMutation = useMutation(
+    (payload) => api.post('/abyss/schedules', payload),
+    {
+      onSuccess: () => {
+        toast.success('排表已添加');
+        queryClient.invalidateQueries('abyss-schedules');
+        setShowScheduleModal(false);
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || '添加排表失败（同一成员同一天只能有一条）');
+      },
+    }
+  );
+
+  const deleteScheduleMutation = useMutation(
+    (id) => api.delete(`/abyss/schedules/${id}`),
+    {
+      onSuccess: () => {
+        toast.success('已删除该排表');
+        queryClient.invalidateQueries('abyss-schedules');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || '删除失败');
+      },
+    }
+  );
+
+  const updateScheduleStatusMutation = useMutation(
+    ({ id, status }) => api.put(`/abyss/schedules/${id}`, { status }),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('abyss-schedules');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || '更新状态失败');
+      },
+    }
   );
 
   const createRecordMutation = useMutation(
@@ -219,6 +274,20 @@ const Abyss = () => {
     e.target.reset();
   };
 
+  const handleCreateSchedule = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const scheduleDate = formData.get('schedule_date');
+    createScheduleMutation.mutate({
+      user_id: parseInt(formData.get('user_id'), 10),
+      team_id: parseInt(formData.get('team_id'), 10),
+      schedule_date: scheduleDate,
+      week_number: isoWeekFromDateString(scheduleDate),
+      status: formData.get('status') || 'scheduled',
+      notes: formData.get('notes') || '',
+    });
+  };
+
   const allMembers = usersData?.filter(u => u.status === 'active') || [];
   const activeLeaveUserIds = new Set((activeLeavesData || []).map((leave) => leave.user_id));
   const isCurrentUserOnLeave = (activeLeavesData || []).some((leave) => leave.user_id === user?.id);
@@ -261,6 +330,7 @@ const Abyss = () => {
         <div className="flex flex-wrap border-b border-ink-light mb-6">
           {[
             { id: 'schedule', label: '深渊记录', icon: <FiCalendar /> },
+            { id: 'plans', label: '排表登记', icon: <FiGrid /> },
             { id: 'teams', label: '队伍管理', icon: <FiUsers /> },
             { id: 'ranking', label: '战绩排行', icon: <GiRank3 /> },
             { id: 'leave', label: '请假申请', icon: <FiClock /> },
@@ -332,6 +402,114 @@ const Abyss = () => {
           </div>
         )}
 
+        {activeTab === 'plans' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold">深渊排表登记</h2>
+                <p className="text-sm text-ninja-gray mt-1 max-w-2xl">
+                  在此登记「某日、某成员、归属哪一队」；与下方「队伍管理」里的人员名单配合使用。
+                  生成对外展示的排表长图请在「队伍管理」中点击「生成排表图」（按当前队伍成员排版）。
+                </p>
+              </div>
+              {isCaptain && (
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleModal(true)}
+                  className="ink-button ink-button-primary flex items-center shrink-0"
+                >
+                  <FiPlus className="mr-2" />
+                  添加排表
+                </button>
+              )}
+            </div>
+
+            {schedulesLoading ? (
+              <div className="text-center py-8 text-ninja-gray">加载中...</div>
+            ) : (schedulesData || []).length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-ink-light text-left text-ninja-gray">
+                      <th className="py-2 pr-3">日期</th>
+                      <th className="py-2 pr-3">成员</th>
+                      <th className="py-2 pr-3">队伍</th>
+                      <th className="py-2 pr-3">周次</th>
+                      <th className="py-2 pr-3">状态</th>
+                      <th className="py-2 pr-3">备注</th>
+                      {isCaptain && <th className="py-2">操作</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(schedulesData || []).map((row) => (
+                      <tr key={row.id} className="border-b border-ink-light/60">
+                        <td className="py-2 pr-3">{row.schedule_date}</td>
+                        <td className="py-2 pr-3">
+                          {row.user?.display_name || row.user?.username || '—'}
+                        </td>
+                        <td className="py-2 pr-3">
+                          {row.team?.team_name || `队伍 #${row.team_id}`}
+                        </td>
+                        <td className="py-2 pr-3">第 {row.week_number} 周</td>
+                        <td className="py-2 pr-3">
+                          {isCaptain ? (
+                            <select
+                              className="brush-input py-1 text-xs min-w-[6rem]"
+                              value={row.status}
+                              disabled={updateScheduleStatusMutation.isLoading}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (v === row.status) return;
+                                updateScheduleStatusMutation.mutate({ id: row.id, status: v });
+                              }}
+                            >
+                              <option value="scheduled">已排</option>
+                              <option value="absent">缺席</option>
+                              <option value="completed">已完成</option>
+                            </select>
+                          ) : (
+                            <span>
+                              {row.status === 'scheduled'
+                                ? '已排'
+                                : row.status === 'absent'
+                                  ? '缺席'
+                                  : '已完成'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 pr-3 text-ninja-gray max-w-[12rem] truncate" title={row.notes || ''}>
+                          {row.notes || '—'}
+                        </td>
+                        {isCaptain && (
+                          <td className="py-2">
+                            <button
+                              type="button"
+                              className="text-accent-red hover:underline text-xs"
+                              onClick={() => {
+                                if (window.confirm('确定删除这条排表？')) deleteScheduleMutation.mutate(row.id);
+                              }}
+                            >
+                              删除
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-ninja-gray">
+                <FiGrid className="text-5xl mx-auto mb-3 opacity-50" />
+                <p>暂无排表记录</p>
+                {isCaptain && (
+                  <p className="text-sm mt-1">点击「添加排表」登记第一条</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'teams' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -350,6 +528,7 @@ const Abyss = () => {
             </div>
             <p className="text-sm text-ninja-gray -mt-2">
               按「紫川深渊排表」样式导出两张图：1～4 队一张、5～9 队一张；每队 5×2 共 10 格，队长在首位并黄色底纹，缺人留空。
+              队员名单请在各队「添加成员」中维护；日历向的「某日谁出战」请到「排表登记」页填写。
             </p>
 
             {teamsLoading ? (
@@ -629,6 +808,66 @@ const Abyss = () => {
           </div>
         )}
       </div>
+
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="paper-card w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold mb-4">添加排表</h3>
+            <form onSubmit={handleCreateSchedule} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">出战日期</label>
+                <input name="schedule_date" type="date" required className="brush-input" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">成员</label>
+                <select name="user_id" required className="brush-input">
+                  <option value="">请选择</option>
+                  {allMembers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.display_name || m.username} (ID: {m.game_id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">队伍</label>
+                <select name="team_id" required className="brush-input">
+                  <option value="">请选择</option>
+                  {(teamsData || []).map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.team_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">状态</label>
+                <select name="status" className="brush-input">
+                  <option value="scheduled">已排</option>
+                  <option value="absent">缺席</option>
+                  <option value="completed">已完成</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">备注（可选）</label>
+                <textarea name="notes" rows={2} className="brush-input" placeholder="例如：替补、换班说明" />
+              </div>
+              <div className="flex space-x-3 pt-2">
+                <button type="submit" className="ink-button ink-button-primary flex-1" disabled={createScheduleMutation.isLoading}>
+                  {createScheduleMutation.isLoading ? '提交中…' : '保存'}
+                </button>
+                <button
+                  type="button"
+                  className="ink-button flex-1"
+                  onClick={() => setShowScheduleModal(false)}
+                >
+                  取消
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showRecordModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

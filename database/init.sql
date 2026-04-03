@@ -89,12 +89,15 @@ CREATE TABLE IF NOT EXISTS leave_records (
   INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='请假记录表';
 
--- SS+猎杀记录表
+-- SS+猎杀记录表（须含倒计时与五格分配，与 Sequelize 模型一致）
 CREATE TABLE IF NOT EXISTS ssplus_hunts (
   id INT PRIMARY KEY AUTO_INCREMENT,
   hunt_date DATE NOT NULL COMMENT '猎杀日期',
   target_name VARCHAR(100) NOT NULL COMMENT '目标名称',
   target_level VARCHAR(20) DEFAULT 'SS+' COMMENT '目标等级',
+  countdown_end_at DATETIME NULL COMMENT '倒计时结束时间',
+  countdown_days_remaining INT NULL COMMENT '剩余天数快照',
+  assignment_slots JSON NULL COMMENT '五个位置用户ID数组',
   screenshot_url VARCHAR(255) NOT NULL COMMENT '截图URL',
   hunt_time TIME COMMENT '猎杀时间（从图片识别或手动输入）',
   status ENUM('pending', 'in_progress', 'completed', 'failed') DEFAULT 'pending' COMMENT '状态',
