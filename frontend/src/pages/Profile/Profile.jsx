@@ -179,7 +179,7 @@ const Profile = () => {
                 <span className="font-bold text-accent-red">{user?.abyss_role_config || '未填写'}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-ninja-gray">宝物情况</span>
+                <span className="text-ninja-gray">宝物情况（忍术胧夜超）</span>
                 <span className="font-bold text-accent-green">{user?.treasure_config || '未填写'}</span>
               </div>
             </div>
@@ -265,7 +265,7 @@ const Profile = () => {
                     <div className="p-4 bg-green-50 rounded-lg">
                       <div className="text-sm text-ninja-gray mb-2 flex items-center">
                         <FiPackage className="mr-2" />
-                        宝物情况
+                        宝物情况（忍术胧夜超）
                       </div>
                       <div className="text-lg font-bold">
                         {form.treasure_config || '未填写'}
@@ -394,7 +394,7 @@ const Profile = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">
-                        宝物情况（格式：3+3 或 0+0）
+                        宝物情况（忍术胧夜超，格式：3+3 或 0+0）
                       </label>
                       <input
                         type="text"
