@@ -9,7 +9,7 @@ const {
   RedemptionCode,
   sequelize
 } = require('../models');
-const { Op } = require('sequelize');
+const { Op, QueryTypes } = require('sequelize');
 const logger = require('../utils/logger');
 
 class AbyssController {
@@ -33,10 +33,25 @@ class AbyssController {
   }
 
   /**
+   * 若库中无深渊队伍（未跑 init 种子），补插 1–10 队，与 database/init.sql 一致
+   */
+  static async ensureDefaultAbyssTeams() {
+    const n = await AbyssTeam.count();
+    if (n > 0) return;
+    await sequelize.query(
+      `INSERT IGNORE INTO abyss_teams (team_number, team_name, status) VALUES
+       (1,'第一队','active'),(2,'第二队','active'),(3,'第三队','active'),(4,'第四队','active'),(5,'第五队','active'),
+       (6,'第六队','active'),(7,'第七队','active'),(8,'第八队','active'),(9,'第九队','active'),(10,'第十队','active')`,
+      { type: QueryTypes.INSERT }
+    );
+  }
+
+  /**
    * 获取深渊队伍列表
    */
   static async getTeams(req, res, next) {
     try {
+      await AbyssController.ensureDefaultAbyssTeams();
       const teams = await AbyssTeam.findAll({
         include: [
           { model: AbyssTeamMember, as: 'members', include: [{ model: require('../models').User, as: 'user', attributes: ['id', 'username', 'display_name', 'game_id'] }] },
@@ -417,43 +432,43 @@ class AbyssController {
         });
       }
 
-      const [orderRecord] = await FourElementsOrder.findOrCreate({
-        where: { week_start_date: startDate },
-        defaults: {
-          week_start_date: startDate,
-          week_end_date: endDate,
-          element_order: String(element_order).trim(),
-          source: 'manual'
-        },
-        transaction
-      });
+      const orderTrim = String(element_order).trim();
+      const codeTrim = String(weekly_code).trim();
 
-      await orderRecord.update({
-        week_end_date: endDate,
-        element_order: String(element_order).trim(),
-        source: 'manual'
-      }, { transaction });
+      // 用 MySQL 原生 ODKU，避免 Sequelize upsert/find+create 在唯一键上仍抛错 → 前端「数据已存在」
+      await sequelize.query(
+        `INSERT INTO four_elements_orders (week_start_date, week_end_date, element_order, source, created_at, updated_at)
+         VALUES (?, ?, ?, 'manual', NOW(), NOW())
+         ON DUPLICATE KEY UPDATE
+           week_end_date = VALUES(week_end_date),
+           element_order = VALUES(element_order),
+           source = VALUES(source),
+           updated_at = NOW()`,
+        { replacements: [startDate, endDate, orderTrim], transaction }
+      );
+
+      await sequelize.query(
+        `INSERT INTO redemption_codes (code, description, expiration_date, usage_limit, used_count, status, created_by, created_at, updated_at)
+         VALUES (?, 'WEEKLY_HOME_CODE', ?, 999999, 0, 'active', ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE
+           description = VALUES(description),
+           expiration_date = VALUES(expiration_date),
+           usage_limit = VALUES(usage_limit),
+           status = VALUES(status),
+           updated_at = NOW()`,
+        { replacements: [codeTrim, endDate, req.user.id], transaction }
+      );
 
       await RedemptionCode.update(
         { status: 'expired' },
         {
           where: {
             description: 'WEEKLY_HOME_CODE',
-            status: 'active'
+            code: { [Op.ne]: codeTrim }
           },
           transaction
         }
       );
-
-      await RedemptionCode.create({
-        code: String(weekly_code).trim(),
-        description: 'WEEKLY_HOME_CODE',
-        expiration_date: endDate,
-        usage_limit: 999999,
-        used_count: 0,
-        status: 'active',
-        created_by: req.user.id
-      }, { transaction });
 
       await transaction.commit();
 
@@ -463,7 +478,7 @@ class AbyssController {
         data: {
           week_start_date: startDate,
           week_end_date: endDate,
-          element_order: String(element_order).trim(),
+          element_order: orderTrim,
           weekly_code: String(weekly_code).trim()
         }
       });
