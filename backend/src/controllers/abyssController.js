@@ -62,22 +62,9 @@ class AbyssController {
       } catch (seedErr) {
         logger.error('补全默认 abyss_teams 失败，仍返回已有数据:', seedErr);
       }
-      // captain / members.user 用 LEFT JOIN：captain_id 或 user_id 指向已删用户时，INNER JOIN 会导致整次查询失败 → 500「服务器内部错误」
+      // 分两次查：一次大 JOIN + order 在部分 MySQL/Sequelize 组合下会报 SQL 错 → 生产环境只显示「服务器内部错误」
       const teams = await AbyssTeam.findAll({
         include: [
-          {
-            model: AbyssTeamMember,
-            as: 'members',
-            required: false,
-            include: [
-              {
-                model: User,
-                as: 'user',
-                required: false,
-                attributes: ['id', 'username', 'display_name', 'game_id']
-              }
-            ]
-          },
           {
             model: User,
             as: 'captain',
@@ -88,9 +75,40 @@ class AbyssController {
         order: [['team_number', 'ASC']]
       });
 
+      const teamIds = teams.map((t) => t.id);
+      const membersByTeamId = {};
+      if (teamIds.length > 0) {
+        const memberRows = await AbyssTeamMember.findAll({
+          where: { team_id: { [Op.in]: teamIds } },
+          include: [
+            {
+              model: User,
+              as: 'user',
+              required: false,
+              attributes: ['id', 'username', 'display_name', 'game_id']
+            }
+          ],
+          order: [
+            ['team_id', 'ASC'],
+            ['id', 'ASC']
+          ]
+        });
+        for (const m of memberRows) {
+          const tid = m.team_id;
+          if (!membersByTeamId[tid]) membersByTeamId[tid] = [];
+          membersByTeamId[tid].push(m);
+        }
+      }
+
+      const teamsPayload = teams.map((t) => {
+        const o = t.toJSON();
+        o.members = (membersByTeamId[t.id] || []).map((mem) => mem.toJSON());
+        return o;
+      });
+
       res.status(200).json({
         success: true,
-        data: { teams }
+        data: { teams: teamsPayload }
       });
     } catch (error) {
       logger.error('获取深渊队伍列表失败:', error);
