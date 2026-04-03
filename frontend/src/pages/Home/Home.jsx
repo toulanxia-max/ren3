@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useAuth } from '../../contexts/AuthContext';
@@ -22,56 +22,58 @@ const Home = () => {
     weekly_code: ''
   });
 
-  const fetchStats = async () => {
-    try {
-      const [usersRes, teamsRes, abyssRes, battlesRes] = await Promise.all([
-        api.get('/users'),
-        api.get('/abyss/teams'),
-        api.get('/abyss/records'),
-        api.get('/battles')
-      ]);
-
-      return {
-        memberCount: Array.isArray(usersRes.data?.users) ? usersRes.data.users.length : 0,
-        teamCount: Array.isArray(teamsRes.data?.teams) ? teamsRes.data.teams.length : 0,
-        abyssRecordCount: Array.isArray(abyssRes.data?.records) ? abyssRes.data.records.length : 0,
-        battleCount: Array.isArray(battlesRes.data?.battles) ? battlesRes.data.battles.length : 0
-      };
-    } catch (error) {
-      console.error('获取统计数据失败:', error);
-      return {
-        memberCount: 0,
-        teamCount: 0,
-        abyssRecordCount: 0,
-        battleCount: 0
-      };
-    }
+  const queryOpts = {
+    staleTime: 15000,
+    refetchOnWindowFocus: true,
+    retry: 1,
   };
 
-  const { data: stats, isLoading, refetch, isFetching } = useQuery(
-    'home-stats',
-    fetchStats,
-    {
-      refetchInterval: 30000,
-      staleTime: 10000
-    }
-  );
-
-  const { data: membersData } = useQuery(
-    'home-members-list',
+  const { data: usersList = [], isLoading: usersLoading, isFetching: usersFetching } = useQuery(
+    'users-list',
     () => api.get('/users').then((res) => res.data?.users || []),
-    {
-      staleTime: 30000
-    }
+    queryOpts
   );
 
-  const { data: teamsData } = useQuery(
-    'home-teams-list',
+  const { data: abyssTeams = [], isLoading: teamsLoading, isFetching: teamsFetching } = useQuery(
+    'abyss-teams',
     () => api.get('/abyss/teams').then((res) => res.data?.teams || []),
-    {
-      staleTime: 30000
-    }
+    queryOpts
   );
+
+  const { data: abyssRecords = [], isLoading: recordsLoading, isFetching: recordsFetching } = useQuery(
+    'abyss-records',
+    () => api.get('/abyss/records').then((res) => res.data?.records || []),
+    queryOpts
+  );
+
+  const { data: battlesList = [], isLoading: battlesLoading, isFetching: battlesFetching } = useQuery(
+    'battles-list-all',
+    () => api.get('/battles').then((res) => res.data?.battles || []),
+    queryOpts
+  );
+
+  const stats = useMemo(
+    () => ({
+      memberCount: Array.isArray(usersList) ? usersList.length : 0,
+      teamCount: Array.isArray(abyssTeams) ? abyssTeams.length : 0,
+      abyssRecordCount: Array.isArray(abyssRecords) ? abyssRecords.length : 0,
+      battleCount: Array.isArray(battlesList) ? battlesList.length : 0,
+    }),
+    [usersList, abyssTeams, abyssRecords, battlesList]
+  );
+
+  const isLoading = usersLoading || teamsLoading || recordsLoading || battlesLoading;
+  const isFetching = usersFetching || teamsFetching || recordsFetching || battlesFetching;
+
+  const membersData = usersList;
+  const teamsData = abyssTeams;
+
+  const refetchDashboard = () => {
+    queryClient.invalidateQueries('users-list');
+    queryClient.invalidateQueries('abyss-teams');
+    queryClient.invalidateQueries('abyss-records');
+    queryClient.invalidateQueries('battles-list-all');
+  };
 
   const { data: weeklyConfig } = useQuery(
     'home-weekly-config',
@@ -110,25 +112,25 @@ const Home = () => {
   const statsData = [
     { 
       label: '家族成员', 
-      value: isLoading ? '...' : (stats?.memberCount || 0), 
+      value: isLoading ? '...' : stats.memberCount, 
       icon: <FiUsers />, 
       color: 'accent-blue' 
     },
     { 
       label: '深渊队伍', 
-      value: isLoading ? '...' : (stats?.teamCount || 0), 
+      value: isLoading ? '...' : stats.teamCount, 
       icon: <GiStoneBlock />, 
       color: 'accent-red' 
     },
     { 
       label: '深渊记录', 
-      value: isLoading ? '...' : (stats?.abyssRecordCount || 0), 
+      value: isLoading ? '...' : stats.abyssRecordCount, 
       icon: <FiTrendingUp />, 
       color: 'accent-green' 
     },
     { 
       label: '家族战', 
-      value: isLoading ? '...' : (stats?.battleCount || 0), 
+      value: isLoading ? '...' : stats.battleCount, 
       icon: <FiTarget />, 
       color: 'accent-gold' 
     },
@@ -159,7 +161,8 @@ const Home = () => {
     <div className="space-y-6">
       <div className="flex justify-end">
         <button
-          onClick={() => refetch()}
+          type="button"
+          onClick={() => refetchDashboard()}
           disabled={isFetching}
           className="flex items-center text-sm text-ninja-gray hover:text-ink transition-colors"
         >

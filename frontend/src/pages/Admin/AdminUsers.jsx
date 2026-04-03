@@ -29,6 +29,7 @@ const AdminUsers = () => {
     {
       onSuccess: (_, { id, role }) => {
         queryClient.invalidateQueries(['admin', 'users']);
+        queryClient.invalidateQueries('users-list');
         toast.success(`已设为${roleLabel(role)}`);
         if (String(id) === String(currentUser?.id)) {
           toast('你修改了自己的角色，将刷新页面以更新权限', { icon: 'ℹ️' });
@@ -48,6 +49,7 @@ const AdminUsers = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries(['admin', 'users']);
+        queryClient.invalidateQueries('users-list');
         toast.success('已删除用户');
       },
       onError: (err) => {

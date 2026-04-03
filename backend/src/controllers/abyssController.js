@@ -152,29 +152,6 @@ class AbyssController {
   }
 
   /**
-   * 删除深渊排表记录
-   */
-  static async deleteSchedule(req, res, next) {
-    try {
-      const schedule = await AbyssSchedule.findByPk(req.params.id);
-      if (!schedule) {
-        return res.status(404).json({
-          success: false,
-          message: '排表记录不存在'
-        });
-      }
-      await schedule.destroy();
-      res.status(200).json({
-        success: true,
-        message: '排表记录已删除'
-      });
-    } catch (error) {
-      logger.error('删除深渊排表记录失败:', error);
-      next(error);
-    }
-  }
-
-  /**
    * 提交深渊战绩
    */
   static async submitRecord(req, res, next) {
