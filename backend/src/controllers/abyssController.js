@@ -87,10 +87,28 @@ class AbyssController {
       } catch (seedErr) {
         logger.error('补全默认 abyss_teams 失败，仍返回已有数据:', seedErr);
       }
+      // captain / members.user 用 LEFT JOIN：captain_id 或 user_id 指向已删用户时，INNER JOIN 会导致整次查询失败 → 500「服务器内部错误」
       const teams = await AbyssTeam.findAll({
         include: [
-          { model: AbyssTeamMember, as: 'members', include: [{ model: require('../models').User, as: 'user', attributes: ['id', 'username', 'display_name', 'game_id'] }] },
-          { model: require('../models').User, as: 'captain', attributes: ['id', 'username', 'display_name', 'game_id'] }
+          {
+            model: AbyssTeamMember,
+            as: 'members',
+            required: false,
+            include: [
+              {
+                model: User,
+                as: 'user',
+                required: false,
+                attributes: ['id', 'username', 'display_name', 'game_id']
+              }
+            ]
+          },
+          {
+            model: User,
+            as: 'captain',
+            required: false,
+            attributes: ['id', 'username', 'display_name', 'game_id']
+          }
         ],
         order: [['team_number', 'ASC']]
       });
