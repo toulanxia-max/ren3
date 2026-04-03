@@ -62,32 +62,17 @@ class AbyssController {
       } catch (seedErr) {
         logger.error('补全默认 abyss_teams 失败，仍返回已有数据:', seedErr);
       }
-      // 分两次查：一次大 JOIN + order 在部分 MySQL/Sequelize 组合下会报 SQL 错 → 生产环境只显示「服务器内部错误」
+      // 不用任何 JOIN：避免 Sequelize+MySQL 在部分环境下生成异常 SQL → 一点队伍管理就 500
       const teams = await AbyssTeam.findAll({
-        include: [
-          {
-            model: User,
-            as: 'captain',
-            required: false,
-            attributes: ['id', 'username', 'display_name', 'game_id']
-          }
-        ],
         order: [['team_number', 'ASC']]
       });
 
       const teamIds = teams.map((t) => t.id);
       const membersByTeamId = {};
+      let memberRows = [];
       if (teamIds.length > 0) {
-        const memberRows = await AbyssTeamMember.findAll({
+        memberRows = await AbyssTeamMember.findAll({
           where: { team_id: { [Op.in]: teamIds } },
-          include: [
-            {
-              model: User,
-              as: 'user',
-              required: false,
-              attributes: ['id', 'username', 'display_name', 'game_id']
-            }
-          ],
           order: [
             ['team_id', 'ASC'],
             ['id', 'ASC']
@@ -100,9 +85,32 @@ class AbyssController {
         }
       }
 
+      const userIdSet = new Set();
+      for (const t of teams) {
+        if (t.captain_id) userIdSet.add(t.captain_id);
+      }
+      for (const m of memberRows) {
+        userIdSet.add(m.user_id);
+      }
+      const usersById = {};
+      if (userIdSet.size > 0) {
+        const userRows = await User.findAll({
+          where: { id: { [Op.in]: [...userIdSet] } },
+          attributes: ['id', 'username', 'display_name', 'game_id']
+        });
+        for (const u of userRows) {
+          usersById[u.id] = u.toJSON();
+        }
+      }
+
       const teamsPayload = teams.map((t) => {
         const o = t.toJSON();
-        o.members = (membersByTeamId[t.id] || []).map((mem) => mem.toJSON());
+        o.captain = t.captain_id ? usersById[t.captain_id] ?? null : null;
+        o.members = (membersByTeamId[t.id] || []).map((mem) => {
+          const mj = mem.toJSON();
+          mj.user = usersById[mem.user_id] ?? null;
+          return mj;
+        });
         return o;
       });
 
