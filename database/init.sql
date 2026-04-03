@@ -51,7 +51,24 @@ CREATE TABLE IF NOT EXISTS abyss_teams (
   INDEX idx_captain_id (captain_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='深渊队伍表';
 
--- 深渊排表（队伍成员关系）
+-- 深渊队伍成员（与 Sequelize AbyssTeamMember 一致；与 abyss_schedules 排表日期表不同）
+CREATE TABLE IF NOT EXISTS abyss_team_members (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  team_id INT NOT NULL COMMENT '队伍ID',
+  user_id INT NOT NULL COMMENT '用户ID',
+  role ENUM('captain', 'member') NOT NULL DEFAULT 'member' COMMENT '角色',
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '加入时间',
+  notes VARCHAR(255) NULL COMMENT '备注',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (team_id) REFERENCES abyss_teams(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY idx_team_member_unique (team_id, user_id),
+  INDEX idx_team_member_team (team_id),
+  INDEX idx_team_member_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='深渊队伍成员表';
+
+-- 深渊排表（按日期的排班）
 CREATE TABLE IF NOT EXISTS abyss_schedules (
   id INT PRIMARY KEY AUTO_INCREMENT,
   user_id INT NOT NULL COMMENT '用户ID',
