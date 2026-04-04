@@ -23,7 +23,10 @@ const registerSchema = yup.object().shape({
     .required('请确认密码')
     .oneOf([yup.ref('password'), null], '两次密码不一致'),
   display_name: yup.string().required('请输入显示名称').max(50, '显示名称最多50个字符'),
-  email: yup.string().email('邮箱格式不正确').optional(),
+  email: yup
+    .string()
+    .required('请填写邮箱')
+    .email('邮箱格式不正确'),
 });
 
 const Login = () => {
@@ -187,7 +190,7 @@ const Login = () => {
                   type="text"
                   {...regRegister('game_id')}
                   className="brush-input"
-                  placeholder="游戏内ID，用于身份验证"
+                  placeholder="游戏ID（200开头），用于身份验证"
                 />
                 {regErrors.game_id && (
                   <p className="mt-1 text-sm text-accent-red">{regErrors.game_id.message}</p>
@@ -228,13 +231,13 @@ const Login = () => {
 
               <div>
                 <label className="block text-sm font-medium text-ink mb-2">
-                  邮箱 (可选)
+                  邮箱 *
                 </label>
                 <input
                   type="email"
                   {...regRegister('email')}
                   className="brush-input"
-                  placeholder="用于接收通知"
+                  placeholder="用于接收通知（必填）"
                 />
                 {regErrors.email && (
                   <p className="mt-1 text-sm text-accent-red">{regErrors.email.message}</p>
@@ -276,7 +279,7 @@ const Login = () => {
               <div className="text-sm text-ninja-gray p-3 bg-paper-dark rounded-lg">
                 <p className="font-bold mb-1">注册说明：</p>
                 <ul className="list-disc list-inside space-y-1">
-                  <li>请使用真实的游戏ID</li>
+                  <li>请使用真实的游戏ID（200开头）</li>
                   <li>注册后需要管理员审核</li>
                   <li>每个游戏ID只能注册一次</li>
                   <li>请妥善保管密码</li>

@@ -23,8 +23,8 @@ const authValidator = {
       .isLength({ min: 1, max: 50 }).withMessage('显示名称长度应在1-50个字符之间'),
 
     body('email')
-      .optional({ nullable: true, checkFalsy: true })
       .trim()
+      .notEmpty().withMessage('邮箱不能为空')
       .isEmail().withMessage('邮箱格式不正确')
       .normalizeEmail()
   ],

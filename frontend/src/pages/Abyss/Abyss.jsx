@@ -283,6 +283,21 @@ const Abyss = () => {
     }
   );
 
+  const cancelLeaveMutation = useMutation(
+    (leaveId) => api.delete(`/abyss/leaves/${leaveId}`),
+    {
+      onSuccess: () => {
+        toast.success('已取消请假');
+        queryClient.invalidateQueries('my-leaves');
+        queryClient.invalidateQueries('active-leaves');
+        queryClient.invalidateQueries('abyss-teams');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || '取消请假失败');
+      }
+    }
+  );
+
   const removeMemberMutation = useMutation(
     (id) => api.delete(`/abyss/members/${id}`),
     {
@@ -630,6 +645,10 @@ const Abyss = () => {
                   <FiCheckCircle className="text-green-600 mr-2 mt-1" />
                   请假生效期间，成员无法被加入任何队伍
                 </li>
+                <li className="flex items-start">
+                  <FiCheckCircle className="text-green-600 mr-2 mt-1" />
+                  已确认的请假可由本人或管理员取消
+                </li>
               </ul>
             </div>
 
@@ -677,22 +696,38 @@ const Abyss = () => {
               ) : (myLeavesData || []).length > 0 ? (
                 <div className="space-y-2">
                   {myLeavesData.map((leave) => (
-                    <div key={leave.id} className="p-3 rounded-lg bg-paper-dark flex items-center justify-between">
-                      <div>
+                    <div key={leave.id} className="p-3 rounded-lg bg-paper-dark flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div className="min-w-0 flex-1">
                         <p className="font-medium">
                           {leave.start_date} ~ {leave.end_date}
                         </p>
                         <p className="text-sm text-ninja-gray">{leave.reason || '无备注'}</p>
                       </div>
-                      <span className={`ink-badge ${
-                        leave.status === 'approved'
-                          ? 'ink-badge-green'
-                          : leave.status === 'rejected'
-                            ? 'ink-badge-red'
-                            : 'ink-badge-blue'
-                      }`}>
-                        {leave.status === 'approved' ? '已确认' : leave.status === 'rejected' ? '已拒绝' : '待审核'}
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`ink-badge ${
+                          leave.status === 'approved'
+                            ? 'ink-badge-green'
+                            : leave.status === 'rejected'
+                              ? 'ink-badge-red'
+                              : 'ink-badge-blue'
+                        }`}>
+                          {leave.status === 'approved' ? '已确认' : leave.status === 'rejected' ? '已拒绝' : '待审核'}
+                        </span>
+                        {leave.status === 'approved' && (
+                          <button
+                            type="button"
+                            className="text-sm text-accent-red hover:underline"
+                            disabled={cancelLeaveMutation.isLoading}
+                            onClick={() => {
+                              if (window.confirm('确定取消该条请假吗？取消后可重新加入深渊队伍。')) {
+                                cancelLeaveMutation.mutate(leave.id);
+                              }
+                            }}
+                          >
+                            取消请假
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -704,12 +739,36 @@ const Abyss = () => {
             {(activeLeavesData || []).length > 0 && (
               <div className="paper-card">
                 <h3 className="font-bold mb-4">当前请假中的成员</h3>
-                <div className="space-y-1">
-                  {(activeLeavesData || []).map((leave) => (
-                    <div key={leave.id} className="text-sm text-ninja-gray">
-                      {(leave.user?.display_name || leave.user?.username || '未知成员')}（{leave.start_date} ~ {leave.end_date}）
-                    </div>
-                  ))}
+                <div className="space-y-2">
+                  {(activeLeavesData || []).map((leave) => {
+                    const canCancelThis =
+                      isAdmin || Number(leave.user_id) === Number(user?.id);
+                    return (
+                      <div
+                        key={leave.id}
+                        className="text-sm text-ninja-gray flex flex-wrap items-center justify-between gap-2"
+                      >
+                        <span>
+                          {(leave.user?.display_name || leave.user?.username || '未知成员')}（{leave.start_date} ~{' '}
+                          {leave.end_date}）
+                        </span>
+                        {canCancelThis && (
+                          <button
+                            type="button"
+                            className="text-xs text-accent-red hover:underline shrink-0"
+                            disabled={cancelLeaveMutation.isLoading}
+                            onClick={() => {
+                              if (window.confirm('确定取消该成员的请假吗？')) {
+                                cancelLeaveMutation.mutate(leave.id);
+                              }
+                            }}
+                          >
+                            取消请假
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

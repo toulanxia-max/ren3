@@ -67,6 +67,13 @@ router.get('/leaves/me', auth, AbyssController.getMyLeaves);
 router.get('/leaves/active', auth, AbyssController.getActiveLeaves);
 
 /**
+ * @route DELETE /api/v1/abyss/leaves/:id
+ * @desc 取消已确认的请假（本人或管理员）
+ * @access Private
+ */
+router.delete('/leaves/:id', auth, AbyssController.cancelLeave);
+
+/**
  * @route GET /api/v1/abyss/weekly-config
  * @desc 获取首页本周配置（四象顺序/兑换码）
  * @access Private

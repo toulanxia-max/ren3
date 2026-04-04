@@ -394,6 +394,57 @@ class AbyssController {
   }
 
   /**
+   * 取消请假（删除已确认记录）：仅请假本人或管理员
+   */
+  static async cancelLeave(req, res, next) {
+    try {
+      const leaveId = parseInt(req.params.id, 10);
+      if (!Number.isFinite(leaveId)) {
+        return res.status(400).json({
+          success: false,
+          message: '无效的请假记录'
+        });
+      }
+
+      const leave = await LeaveRecord.findByPk(leaveId);
+      if (!leave) {
+        return res.status(404).json({
+          success: false,
+          message: '请假记录不存在'
+        });
+      }
+
+      if (leave.status !== 'approved') {
+        return res.status(400).json({
+          success: false,
+          message: '只能取消已确认的请假'
+        });
+      }
+
+      const isAdmin = req.user.role === 'admin';
+      const isOwner = Number(leave.user_id) === Number(req.user.id);
+      if (!isAdmin && !isOwner) {
+        return res.status(403).json({
+          success: false,
+          message: '仅请假本人或管理员可取消请假'
+        });
+      }
+
+      await leave.destroy();
+
+      logger.info(`取消请假: leaveId=${leaveId}, operator=${req.user.id}, owner=${leave.user_id}`);
+
+      res.status(200).json({
+        success: true,
+        message: '已取消请假'
+      });
+    } catch (error) {
+      logger.error('取消请假失败:', error);
+      next(error);
+    }
+  }
+
+  /**
    * 获取首页本周配置（四象顺序+本周兑换码）
    */
   static async getWeeklyConfig(req, res, next) {

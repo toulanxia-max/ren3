@@ -27,11 +27,7 @@ class AuthController {
       // 检查用户是否已存在
       const existingUser = await User.findOne({
         where: {
-          [Op.or]: [
-            { game_id },
-            { username },
-            ...(email ? [{ email }] : [])
-          ]
+          [Op.or]: [{ game_id }, { username }, { email }]
         }
       });
 
