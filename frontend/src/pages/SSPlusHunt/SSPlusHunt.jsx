@@ -24,6 +24,13 @@ function formatHuntElapsedUploadToComplete(createdAt, completedAt) {
   return parts.join('');
 }
 
+/** 猎杀分配下拉：姓名 + 深渊使用角色（个人资料里的 abyss_role_config） */
+function formatMemberLabelForHuntSlot(m) {
+  const name = (m.display_name || m.username || `用户${m.id}`).trim();
+  const abyss = (m.abyss_role_config || '').trim();
+  return abyss ? `${name}（${abyss}）` : `${name}（未填写）`;
+}
+
 const SSPlusHunt = () => {
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
@@ -223,20 +230,23 @@ const SSPlusHunt = () => {
                   <div className="mb-4">
                     <div className="font-medium mb-2">分配位置（5人）</div>
                     <p className="text-xs text-ninja-gray mb-2">
-                      位置1默认为发布任务成员，管理员可改；位置2～5由管理员分配。
+                      位置1默认为发布任务成员，管理员可改；位置2～5由管理员分配。下拉里每人姓名后附深渊使用角色，便于安排。
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                       {[0, 1, 2, 3, 4].map((idx) => (
                         <select
                           key={idx}
-                          className="brush-input"
+                          className="brush-input text-xs md:text-sm max-w-full"
                           disabled={!isAdmin}
                           value={task.assignment_slots?.[idx] || ''}
                           onChange={(e) => handleAssignSlot(task, idx, e.target.value)}
+                          title="展开后可见成员深渊使用角色"
                         >
                           <option value="">位置{idx + 1}</option>
                           {getAvailableMembersForSlot(task, idx).map((m) => (
-                            <option key={m.id} value={m.id}>{m.display_name || m.username}</option>
+                            <option key={m.id} value={m.id}>
+                              {formatMemberLabelForHuntSlot(m)}
+                            </option>
                           ))}
                         </select>
                       ))}
