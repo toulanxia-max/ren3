@@ -73,6 +73,13 @@ router.get('/:id?', auth, UserController.getUser);
 router.put('/:id/role', auth, authorizeAdmin, UserController.updateUserRole);
 
 /**
+ * @route PUT /api/v1/users/:id/password
+ * @desc 管理员重置成员登录密码
+ * @access Private (Admin)
+ */
+router.put('/:id/password', auth, authorizeAdmin, UserController.resetUserPassword);
+
+/**
  * @route PUT /api/v1/users/:id
  * @desc 更新用户信息
  * @access Private

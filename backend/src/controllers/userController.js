@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 const { User } = require('../models');
 const logger = require('../utils/logger');
 
@@ -167,6 +168,51 @@ class UserController {
       });
     } catch (error) {
       logger.error('上传头像失败:', error);
+      next(error);
+    }
+  }
+
+  /**
+   * 管理员重置成员登录密码（无需旧密码）
+   */
+  static async resetUserPassword(req, res, next) {
+    try {
+      const userId = req.params.id;
+      const { newPassword } = req.body;
+
+      if (!newPassword || String(newPassword).length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: '新密码至少6个字符'
+        });
+      }
+      if (String(newPassword).length > 100) {
+        return res.status(400).json({
+          success: false,
+          message: '密码过长'
+        });
+      }
+
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        });
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      const password_hash = await bcrypt.hash(String(newPassword), salt);
+      await user.update({ password_hash });
+
+      logger.info(`管理员重置用户密码: 目标=${user.username} id=${user.id} 操作者=${req.user.id}`);
+
+      res.status(200).json({
+        success: true,
+        message: '密码已重置，请通知用户使用新密码登录'
+      });
+    } catch (error) {
+      logger.error('重置密码失败:', error);
       next(error);
     }
   }

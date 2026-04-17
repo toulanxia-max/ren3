@@ -2,7 +2,7 @@ import React from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
-import { FiTrash2 } from 'react-icons/fi';
+import { FiKey, FiTrash2 } from 'react-icons/fi';
 import ClanLogo from '../../components/ClanLogo/ClanLogo';
 
 const roleLabel = (r) => (r === 'admin' ? '管理员' : r === 'captain' ? '队长' : '成员');
@@ -42,6 +42,21 @@ const AdminUsers = () => {
     }
   );
 
+  const resetPasswordMutation = useMutation(
+    async ({ id, newPassword }) => {
+      await api.put(`/users/${id}/password`, { newPassword });
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['admin', 'users']);
+        toast.success('密码已重置，请通知对方用新密码登录');
+      },
+      onError: (err) => {
+        toast.error(err.response?.data?.message || '重置失败');
+      },
+    }
+  );
+
   const deleteMutation = useMutation(
     async (id) => {
       await api.delete(`/users/${id}`);
@@ -57,6 +72,23 @@ const AdminUsers = () => {
       },
     }
   );
+
+  const handleResetPassword = (u) => {
+    const label = u.display_name || u.username;
+    const pwd = window.prompt(`为用户「${label}」设置新登录密码（至少6位）：`);
+    if (pwd === null) return;
+    if (pwd.length < 6) {
+      toast.error('密码至少6位');
+      return;
+    }
+    const pwd2 = window.prompt('请再次输入新密码以确认：');
+    if (pwd2 === null) return;
+    if (pwd !== pwd2) {
+      toast.error('两次输入不一致');
+      return;
+    }
+    resetPasswordMutation.mutate({ id: u.id, newPassword: pwd });
+  };
 
   const handleDelete = (u) => {
     if (String(u.id) === String(currentUser?.id)) {
@@ -75,7 +107,7 @@ const AdminUsers = () => {
           用户管理
         </h1>
         <p className="text-ninja-gray mt-2">
-          查看家族成员、调整角色（管理员 / 队长 / 成员）。删除用户前请确认对方已不再需要访问本站。
+          查看家族成员、调整角色（管理员 / 队长 / 成员）。成员忘记密码时，可使用「重置密码」为其设置新密码并私下告知对方。删除用户前请确认对方已不再需要访问本站。
         </p>
       </div>
 
@@ -122,15 +154,26 @@ const AdminUsers = () => {
                   </td>
                   <td className="py-3 pr-4">{u.status === 'active' ? '正常' : u.status || '—'}</td>
                   <td className="py-3 pr-4">
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(u)}
-                      disabled={deleteMutation.isLoading || String(u.id) === String(currentUser?.id)}
-                      className="inline-flex items-center gap-1 text-accent-red hover:underline disabled:opacity-40 disabled:no-underline"
-                    >
-                      <FiTrash2 size={14} />
-                      删除
-                    </button>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleResetPassword(u)}
+                        disabled={resetPasswordMutation.isLoading}
+                        className="inline-flex items-center gap-1 text-accent-blue hover:underline disabled:opacity-40 disabled:no-underline"
+                      >
+                        <FiKey size={14} />
+                        重置密码
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(u)}
+                        disabled={deleteMutation.isLoading || String(u.id) === String(currentUser?.id)}
+                        className="inline-flex items-center gap-1 text-accent-red hover:underline disabled:opacity-40 disabled:no-underline"
+                      >
+                        <FiTrash2 size={14} />
+                        删除
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
